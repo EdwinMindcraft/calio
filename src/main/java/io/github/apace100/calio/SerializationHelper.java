@@ -41,6 +41,14 @@ public class SerializationHelper {
         throw new JsonSyntaxException("Attribute modifier needs to be a JSON object.");
     }
 
+    public static JsonElement writeAttributeModifier(EntityAttributeModifier modifier) {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("name", modifier.getName());
+        obj.addProperty("operation", modifier.getOperation().name());
+        obj.addProperty("value", modifier.getValue());
+        return obj;
+    }
+
     public static EntityAttributeModifier readAttributeModifier(PacketByteBuf buf) {
         String modName = buf.readString(32767);
         double modValue = buf.readDouble();
@@ -71,6 +79,17 @@ public class SerializationHelper {
         } else {
             throw new JsonSyntaxException("Expected status effect to be a json object.");
         }
+    }
+
+    public static JsonElement writeStatusEffect(StatusEffectInstance instance) {
+        JsonObject object = new JsonObject();
+        object.addProperty("effect", Registry.STATUS_EFFECT.getId(instance.getEffectType()).toString());
+        object.addProperty("duration", instance.getDuration());
+        object.addProperty("amplifier", instance.getAmplifier());
+        object.addProperty("is_ambient", instance.isAmbient());
+        object.addProperty("show_particles", instance.shouldShowParticles());
+        object.addProperty("show_icon", instance.shouldShowIcon());
+        return object;
     }
 
     public static StatusEffectInstance readStatusEffect(PacketByteBuf buf) {

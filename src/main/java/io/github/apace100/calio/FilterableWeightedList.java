@@ -1,6 +1,5 @@
 package io.github.apace100.calio;
 
-import io.github.apace100.calio.mixin.WeightedListEntryAccessor;
 import net.minecraft.util.collection.WeightedList;
 
 import java.util.Random;
@@ -47,7 +46,7 @@ public class FilterableWeightedList<U> extends WeightedList<U> {
     }
 
     public void addAll(FilterableWeightedList<U> other) {
-        other.entryStream().forEach(entry -> add(entry.getElement(), ((WeightedListEntryAccessor)entry).getWeight()));
+        other.entryStream().forEach(entry -> add(entry.getElement(), entry.getWeight()));
     }
 
     public U pickRandom(Random random) {

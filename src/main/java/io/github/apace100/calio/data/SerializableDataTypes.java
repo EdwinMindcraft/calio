@@ -2,12 +2,13 @@ package io.github.apace100.calio.data;
 
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableMap;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSyntaxException;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.serialization.Codec;
 import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.SerializationHelper;
@@ -45,42 +46,21 @@ import net.minecraft.util.registry.Registry;
 import net.minecraft.util.registry.RegistryKey;
 import net.minecraft.world.World;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 
 public final class SerializableDataTypes {
 
-    public static final SerializableDataType<Integer> INT = new SerializableDataType<>(
-        Integer.class,
-        PacketByteBuf::writeInt,
-        PacketByteBuf::readInt,
-        JsonElement::getAsInt);
+    public static final SerializableDataType<Integer> INT = new SerializableDataType<>(Integer.class, Codec.INT);
 
-    public static final SerializableDataType<Boolean> BOOLEAN = new SerializableDataType<>(
-        Boolean.class,
-        PacketByteBuf::writeBoolean,
-        PacketByteBuf::readBoolean,
-        JsonElement::getAsBoolean);
+    public static final SerializableDataType<Boolean> BOOLEAN = new SerializableDataType<>(Boolean.class, Codec.BOOL);
 
-    public static final SerializableDataType<Float> FLOAT = new SerializableDataType<>(
-        Float.class,
-        PacketByteBuf::writeFloat,
-        PacketByteBuf::readFloat,
-        JsonElement::getAsFloat);
+    public static final SerializableDataType<Float> FLOAT = new SerializableDataType<>(Float.class, Codec.FLOAT);
 
-    public static final SerializableDataType<Double> DOUBLE = new SerializableDataType<>(
-        Double.class,
-        PacketByteBuf::writeDouble,
-        PacketByteBuf::readDouble,
-        JsonElement::getAsDouble);
+    public static final SerializableDataType<Double> DOUBLE = new SerializableDataType<>(Double.class, Codec.DOUBLE);
 
-    public static final SerializableDataType<String> STRING = new SerializableDataType<>(
-        String.class,
-        PacketByteBuf::writeString,
-        (buf) -> buf.readString(32767),
-        JsonElement::getAsString);
+    public static final SerializableDataType<String> STRING = new SerializableDataType<>(String.class, Codec.STRING);
 
     public static final SerializableDataType<Identifier> IDENTIFIER = new SerializableDataType<>(
         Identifier.class,
@@ -118,7 +98,8 @@ public final class SerializableDataTypes {
                 }
             }
             return new Identifier(idString);
-        });
+        },
+        x -> new JsonPrimitive(x.toString()));
 
     public static final SerializableDataType<List<Identifier>> IDENTIFIERS = SerializableDataType.list(IDENTIFIER);
 
@@ -177,7 +158,8 @@ public final class SerializableDataTypes {
         EntityAttributeModifier.class,
         SerializationHelper::writeAttributeModifier,
         SerializationHelper::readAttributeModifier,
-        SerializationHelper::readAttributeModifier);
+        SerializationHelper::readAttributeModifier,
+        SerializationHelper::writeAttributeModifier);
 
     public static final SerializableDataType<EntityAttributeModifier.Operation> MODIFIER_OPERATION = SerializableDataType.enumValue(EntityAttributeModifier.Operation.class);
 
@@ -195,7 +177,8 @@ public final class SerializableDataTypes {
         StatusEffectInstance.class,
         SerializationHelper::writeStatusEffect,
         SerializationHelper::readStatusEffect,
-        SerializationHelper::readStatusEffect);
+        SerializationHelper::readStatusEffect,
+        SerializationHelper::writeStatusEffect);
 
     public static final SerializableDataType<List<StatusEffectInstance>> STATUS_EFFECT_INSTANCES =
         SerializableDataType.list(STATUS_EFFECT_INSTANCE);
@@ -263,14 +246,16 @@ public final class SerializableDataTypes {
             List<ItemStack> items = new LinkedList<>();
             itemLists.forEach(itemList -> itemList.forEach(item -> items.add(new ItemStack(item))));
             return Ingredient.ofStacks(items.stream());
-        });
+        },
+        Ingredient::toJson);
 
     // The regular vanilla Minecraft ingredient.
     public static final SerializableDataType<Ingredient> VANILLA_INGREDIENT = new SerializableDataType<>(
         Ingredient.class,
         (buffer, ingredient) -> ingredient.write(buffer),
         Ingredient::fromPacket,
-        Ingredient::fromJson);
+        Ingredient::fromJson,
+        Ingredient::toJson);
 
     public static final SerializableDataType<Block> BLOCK = SerializableDataType.registry(Block.class, Registry.BLOCK);
 
@@ -326,7 +311,8 @@ public final class SerializableDataTypes {
     public static final SerializableDataType<Text> TEXT = new SerializableDataType<>(Text.class,
         (buffer, text) -> buffer.writeString(Text.Serializer.toJson(text)),
         (buffer) -> Text.Serializer.fromJson(buffer.readString(32767)),
-        Text.Serializer::fromJson);
+        Text.Serializer::fromJson,
+        Text.Serializer::toJsonTree);
 
     public static SerializableDataType<RegistryKey<World>> DIMENSION = SerializableDataType.wrap(
         ClassUtil.castClass(RegistryKey.class),
@@ -334,6 +320,10 @@ public final class SerializableDataTypes {
         RegistryKey::getValue, identifier -> RegistryKey.of(Registry.WORLD_KEY, identifier)
     );
 
+    // It is theoretically possible to support recipe serialization, but it's a mess.
+    // To do this, we need to keep an additional list functions designed to build RecipeJsonProvider
+    // from recipes, which is possible, but time consuming to setup, and prone to breaking if another
+    // mod's recipe type is used.
     public static final SerializableDataType<Recipe> RECIPE = new SerializableDataType<>(Recipe.class,
         (buffer, recipe) -> {
             buffer.writeIdentifier(Registry.RECIPE_SERIALIZER.getId(recipe.getSerializer()));

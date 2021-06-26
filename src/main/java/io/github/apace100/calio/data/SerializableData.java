@@ -2,14 +2,18 @@ package io.github.apace100.calio.data;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
+import com.mojang.datafixers.util.Pair;
+import com.mojang.serialization.*;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.Identifier;
 
 import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
-public class SerializableData {
+public class SerializableData extends MapCodec<SerializableData.Instance> {
 
     // Should be set to the current namespace of the file that is being read. Allows using * in identifiers.
     public static String CURRENT_NAMESPACE;
@@ -38,15 +42,15 @@ public class SerializableData {
         dataFields.forEach((name, entry) -> {
             try {
                 boolean isPresent = instance.get(name) != null;
-                if(entry.hasDefault && entry.defaultValue == null) {
+                if (entry.hasDefault && entry.defaultValue == null) {
                     buffer.writeBoolean(isPresent);
                 }
-                if(isPresent) {
+                if (isPresent) {
                     entry.dataType.send(buffer, instance.get(name));
                 }
-            } catch(DataException e) {
+            } catch (DataException e) {
                 throw e.prepend(name);
-            } catch(Exception e) {
+            } catch (Exception e) {
                 throw new DataException(DataException.Phase.WRITING, name, e);
             }
         });
@@ -57,7 +61,7 @@ public class SerializableData {
         dataFields.forEach((name, entry) -> {
             try {
                 boolean isPresent = true;
-                if(entry.hasDefault && entry.defaultValue == null) {
+                if (entry.hasDefault && entry.defaultValue == null) {
                     isPresent = buffer.readBoolean();
                 }
                 instance.set(name, isPresent ? entry.dataType.receive(buffer) : null);
@@ -92,61 +96,44 @@ public class SerializableData {
         return instance;
     }
 
-    public class Instance {
-        private HashMap<String, Object> data = new HashMap<>();
+    @Override
+    public <T> Stream<T> keys(DynamicOps<T> ops) {
+        return Stream.empty();
+    }
 
-        public Instance() {
-
-        }
-
-        public boolean isPresent(String name) {
-            if(dataFields.containsKey(name)) {
-                Entry<?> entry = dataFields.get(name);
-                if(entry.hasDefault && entry.defaultValue == null) {
-                    return get(name) != null;
-                }
+    @Override
+    public <T> DataResult<Instance> decode(DynamicOps<T> ops, MapLike<T> input) {
+        DataResult<MapLike<T>> map = DataResult.success(input);
+        return map.flatMap(fields -> {
+            DataResult<Instance> result = DataResult.success(new Instance());
+            for (Map.Entry<String, Entry<?>> entry : this.dataFields.entrySet()) {
+                result = result.flatMap(x -> {
+                    T t = fields.get(entry.getKey());
+                    if (t == null) {
+                        if (!entry.getValue().hasDefault())
+                            return DataResult.error("Missing required field: " + entry.getKey());
+                        x.set(entry.getKey(), entry.getValue().getDefault(x));
+                        return DataResult.success(x);
+                    } else {
+                        return entry.getValue().dataType.decode(ops, t).map(Pair::getFirst).map(obj -> {
+                            x.set(entry.getKey(), obj);
+                            return x;
+                        });
+                    }
+                });
             }
-            return true;
-        }
+            return result;
+        });
+    }
 
-        public void set(String name, Object value) {
-            this.data.put(name, value);
-        }
-
-        public Object get(String name) {
-            if(!data.containsKey(name)) {
-                throw new RuntimeException("Tried to get field \"" + name + "\" from data, which did not exist.");
-            }
-            return data.get(name);
-        }
-
-        public int getInt(String name) {
-            return (int)get(name);
-        }
-
-        public boolean getBoolean(String name) {
-            return (boolean)get(name);
-        }
-
-        public float getFloat(String name) {
-            return (float)get(name);
-        }
-
-        public double getDouble(String name) {
-            return (double)get(name);
-        }
-
-        public String getString(String name) {
-            return (String)get(name);
-        }
-
-        public Identifier getId(String name) {
-            return (Identifier)get(name);
-        }
-
-        public EntityAttributeModifier getModifier(String name) {
-            return (EntityAttributeModifier)get(name);
-        }
+    @Override
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public <T> RecordBuilder<T> encode(Instance input, DynamicOps<T> ops, RecordBuilder<T> prefix) {
+        input.data.forEach((key, value) -> {
+            Entry entry = this.dataFields.get(key);
+            prefix.add(key, entry.dataType.encodeStart(ops, value));
+        });
+        return prefix;
     }
 
     private static class Entry<T> {
@@ -185,13 +172,70 @@ public class SerializableData {
         }
 
         public T getDefault(Instance dataInstance) {
-            if(hasDefaultFunction) {
+            if (hasDefaultFunction) {
                 return defaultFunction.apply(dataInstance);
-            } else if(hasDefault) {
+            } else if (hasDefault) {
                 return defaultValue;
             } else {
                 throw new IllegalStateException("Tried to access default value of serializable data entry, when no default was provided.");
             }
+        }
+    }
+
+    public class Instance {
+        private HashMap<String, Object> data = new HashMap<>();
+
+        public Instance() {
+
+        }
+
+        public boolean isPresent(String name) {
+            if (dataFields.containsKey(name)) {
+                Entry<?> entry = dataFields.get(name);
+                if (entry.hasDefault && entry.defaultValue == null) {
+                    return get(name) != null;
+                }
+            }
+            return true;
+        }
+
+        public void set(String name, Object value) {
+            this.data.put(name, value);
+        }
+
+        public Object get(String name) {
+            if (!data.containsKey(name)) {
+                throw new RuntimeException("Tried to get field \"" + name + "\" from data, which did not exist.");
+            }
+            return data.get(name);
+        }
+
+        public int getInt(String name) {
+            return (int) get(name);
+        }
+
+        public boolean getBoolean(String name) {
+            return (boolean) get(name);
+        }
+
+        public float getFloat(String name) {
+            return (float) get(name);
+        }
+
+        public double getDouble(String name) {
+            return (double) get(name);
+        }
+
+        public String getString(String name) {
+            return (String) get(name);
+        }
+
+        public Identifier getId(String name) {
+            return (Identifier) get(name);
+        }
+
+        public EntityAttributeModifier getModifier(String name) {
+            return (EntityAttributeModifier) get(name);
         }
     }
 }
