@@ -9,6 +9,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
+import dev.experimental.calio.api.network.CalioCodecHelper;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.FilterableWeightedList;
 import io.netty.buffer.Unpooled;
@@ -66,15 +67,11 @@ public class SerializableDataType<T> implements Codec<T> {
     }
 
     public static <T> SerializableDataType<List<T>> list(SerializableDataType<T> singleDataType) {
-        return new SerializableDataType<>(ClassUtil.castClass(List.class), Codec.either(singleDataType, singleDataType.listOf()).xmap(x -> x.map(Arrays::asList, Function.identity()), Either::right));
+        return new SerializableDataType<>(ClassUtil.castClass(List.class), CalioCodecHelper.listOf(singleDataType));
     }
 
     public static <T> SerializableDataType<FilterableWeightedList<T>> weightedList(SerializableDataType<T> singleDataType) {
-        return new SerializableDataType<>(ClassUtil.castClass(FilterableWeightedList.class), Codec.pair(singleDataType, Codec.INT).listOf().xmap(pairs -> {
-            FilterableWeightedList<T> list = new FilterableWeightedList<>();
-            pairs.forEach(pair -> list.add(pair.getFirst(), pair.getSecond()));
-            return list;
-        }, list -> list.entryStream().map(x -> Pair.of(x.getElement(), x.getWeight())).toList()));
+        return new SerializableDataType<>(ClassUtil.castClass(FilterableWeightedList.class), CalioCodecHelper.weightedListOf(singleDataType));
     }
 
     public static <T> SerializableDataType<T> registry(Class<T> dataClass, Registry<T> registry) {
