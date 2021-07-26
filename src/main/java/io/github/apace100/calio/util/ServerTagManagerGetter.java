@@ -1,11 +1,11 @@
 package io.github.apace100.calio.util;
 
-import net.minecraft.tag.ServerTagManagerHolder;
-import net.minecraft.tag.TagManager;
+import net.minecraft.tags.SerializationTags;
+import net.minecraft.tags.TagContainer;
 
 public class ServerTagManagerGetter implements TagManagerGetter {
-    @Override
-    public TagManager get() {
-        return ServerTagManagerHolder.getTagManager();
-    }
+	@Override
+	public TagContainer get() {
+		return SerializationTags.getInstance();
+	}
 }

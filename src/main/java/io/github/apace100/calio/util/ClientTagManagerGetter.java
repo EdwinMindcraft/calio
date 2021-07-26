@@ -1,23 +1,19 @@
 package io.github.apace100.calio.util;
 
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayNetworkHandler;
-import net.minecraft.tag.ServerTagManagerHolder;
-import net.minecraft.tag.TagManager;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.tags.SerializationTags;
+import net.minecraft.tags.TagContainer;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
-@Environment(EnvType.CLIENT)
+@OnlyIn(Dist.CLIENT)
 public class ClientTagManagerGetter implements TagManagerGetter {
-    @Override
-    public TagManager get() {
-        ClientPlayNetworkHandler networkHandler = MinecraftClient.getInstance().getNetworkHandler();
-        if(networkHandler != null) {
-            TagManager tagManager = networkHandler.getTagManager();
-            if(tagManager != null) {
-                return tagManager;
-            }
-        }
-        return ServerTagManagerHolder.getTagManager();
-    }
+	@Override
+	public TagContainer get() {
+		ClientPacketListener networkHandler = Minecraft.getInstance().getConnection();
+		if (networkHandler != null)
+			return networkHandler.getTags();
+		return SerializationTags.getInstance();
+	}
 }

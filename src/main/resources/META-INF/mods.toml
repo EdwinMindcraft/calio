@@ -1,0 +1,28 @@
+modLoader="javafml"
+loaderVersion="[37,)"
+issueTrackerURL="https://github.com/EdwinMindcraft/calio/issues" #optional
+license="MIT"
+
+[[mods]]
+modId="calio"
+version="${version}"
+displayName="Calio"
+logoFile="assets/calio/icon.png"
+authors="apace100, EdwinMindcraft"
+description='''
+A simple library mod, mainly adds a serializable data system.
+'''
+
+[[dependencies.calio]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.17.1]"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.calio]]
+modId="forge"
+mandatory=true
+versionRange="[37,)"
+ordering="NONE"
+side="BOTH"

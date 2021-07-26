@@ -1,8 +1,8 @@
 package io.github.apace100.calio.util;
 
-import net.minecraft.tag.TagManager;
+import net.minecraft.tags.TagContainer;
 
 public interface TagManagerGetter {
 
-    TagManager get();
+	TagContainer get();
 }

@@ -6,7 +6,7 @@ public class DataException extends RuntimeException {
 
     private Phase phase;
     private String path;
-    private Exception exception;
+    private final Exception exception;
 
     public DataException(Phase phase, String path, Exception exception) {
         super("Error " + phase.name().toLowerCase(Locale.ROOT) + " data field");

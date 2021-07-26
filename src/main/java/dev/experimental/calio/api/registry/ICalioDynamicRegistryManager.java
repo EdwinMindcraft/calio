@@ -1,9 +1,9 @@
 package dev.experimental.calio.api.registry;
 
 import com.mojang.serialization.Codec;
-import net.minecraft.util.registry.MutableRegistry;
-import net.minecraft.util.registry.Registry;
-import net.minecraft.util.registry.RegistryKey;
+import net.minecraft.core.Registry;
+import net.minecraft.core.WritableRegistry;
+import net.minecraft.resources.ResourceKey;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -20,38 +20,34 @@ public interface ICalioDynamicRegistryManager {
 	 *                be copied into the newly created dynamic registry.
 	 * @param codec   The codec used to send the data from the client to the server.
 	 */
-	<T> void add(@NotNull RegistryKey<Registry<T>> key, @Nullable Supplier<Registry<T>> builtin, Codec<T> codec);
+	<T> void add(@NotNull ResourceKey<Registry<T>> key, @Nullable Supplier<Registry<T>> builtin, Codec<T> codec);
 
 	/**
 	 * Resets the given registry, creating a new one from the input data.
 	 *
 	 * @param key The registry to reset.
-	 *
 	 * @return The new registry.
 	 */
-	<T> MutableRegistry<T> reset(RegistryKey<Registry<T>> key);
+	<T> WritableRegistry<T> reset(ResourceKey<Registry<T>> key);
 
 	/**
 	 * Returns the mutable registry corresponding to the given key.
 	 *
 	 * @param key The key of the registry.
-	 *
 	 * @return The registry associated with the given key.
-	 *
 	 * @throws IllegalArgumentException if no registry matches the given key.
-	 * @see #getOrEmpty(RegistryKey) for the null-safe version.
+	 * @see #getOrEmpty(ResourceKey) for the null-safe version.
 	 */
-	@NotNull <T> MutableRegistry<T> get(@NotNull RegistryKey<Registry<T>> key);
+	@NotNull <T> WritableRegistry<T> get(@NotNull ResourceKey<Registry<T>> key);
 
 	/**
 	 * Returns an optional containing the mutable registry corresponding to the
 	 * key, or {@link Optional#empty()} if none are found.
 	 *
 	 * @param key The key of the registry.
-	 *
 	 * @return The registry associated with the given key.
 	 */
-	<T> Optional<MutableRegistry<T>> getOrEmpty(RegistryKey<Registry<T>> key);
+	<T> Optional<WritableRegistry<T>> getOrEmpty(ResourceKey<Registry<T>> key);
 
 	/**
 	 * Registers the given item in the given registry.
@@ -59,8 +55,7 @@ public interface ICalioDynamicRegistryManager {
 	 * @param registry The key of the registry to register the item into.
 	 * @param name     The name of the item being registered.
 	 * @param value    The item begin registered
-	 *
 	 * @return The registered item.
 	 */
-	<T> T register(RegistryKey<Registry<T>> registry, RegistryKey<T> name, T value);
+	<T> T register(ResourceKey<Registry<T>> registry, ResourceKey<T> name, T value);
 }
