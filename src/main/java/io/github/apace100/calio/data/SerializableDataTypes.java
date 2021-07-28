@@ -140,17 +140,27 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<Attribute> ATTRIBUTE = SerializableDataType.registry(Attribute.class, Registry.ATTRIBUTE);
 
-	public static final SerializableDataType<AttributeModifier> ATTRIBUTE_MODIFIER = new SerializableDataType<>(
-			AttributeModifier.class,
-			SerializationHelper::writeAttributeModifier,
-			SerializationHelper::readAttributeModifier,
-			SerializationHelper::readAttributeModifier,
-			SerializationHelper::writeAttributeModifier);
+    public static final SerializableDataType<AttributeModifier.Operation> MODIFIER_OPERATION = SerializableDataType.enumValue(AttributeModifier.Operation.class);
 
-	public static final SerializableDataType<AttributeModifier.Operation> MODIFIER_OPERATION = SerializableDataType.enumValue(AttributeModifier.Operation.class);
+    public static final SerializableDataType<AttributeModifier> ATTRIBUTE_MODIFIER = SerializableDataType.compound(AttributeModifier.class, new SerializableData()
+            .add("name", STRING, "Unnamed attribute modifier")
+            .add("operation", MODIFIER_OPERATION)
+            .add("value", DOUBLE),
+        data -> new EntityAttributeModifier(
+            data.getString("name"),
+            data.getDouble("value"),
+            (EntityAttributeModifier.Operation)data.get("operation")
+        ),
+        (serializableData, modifier) -> {
+            SerializableData.Instance inst = serializableData.new Instance();
+            inst.set("name", modifier.getName());
+            inst.set("value", modifier.getValue());
+            inst.set("operation", modifier.getOperation());
+            return inst;
+        });
 
-	public static final SerializableDataType<List<AttributeModifier>> ATTRIBUTE_MODIFIERS =
-			SerializableDataType.list(ATTRIBUTE_MODIFIER);
+    public static final SerializableDataType<List<AttributeModifier>> ATTRIBUTE_MODIFIERS =
+        SerializableDataType.list(ATTRIBUTE_MODIFIER);
 
 	public static final SerializableDataType<Item> ITEM = SerializableDataType.registry(Item.class, Registry.ITEM);
 
@@ -332,4 +342,14 @@ public final class SerializableDataTypes {
 			SerializableDataTypes.IDENTIFIER,
 			ResourceKey::location, identifier -> ResourceKey.create(Registry.DIMENSION_REGISTRY, identifier)
 	);
+
+	public static final SerializableDataType<GameEvent> GAME_EVENT = SerializableDataType.registry(GameEvent.class, Registry.GAME_EVENT);
+
+	public static final SerializableDataType<List<GameEvent>> GAME_EVENTS =
+			SerializableDataType.list(GAME_EVENT);
+
+	public static final SerializableDataType<Tag<GameEvent>> GAME_EVENT_TAG = SerializableDataType.wrap(ClassUtil.castClass(Tag.class), SerializableDataTypes.IDENTIFIER,
+			tag -> Calio.getTagManager().getTagId(Registry.GAME_EVENT_KEY, tag, RuntimeException::new),
+			id -> new IdentifiedTag<>(Registry.GAME_EVENT_KEY, id));
+
 }

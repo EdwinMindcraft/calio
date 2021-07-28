@@ -17,6 +17,8 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.HashMap;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.function.Function;
 
 public class SerializationHelper {
@@ -30,6 +32,8 @@ public class SerializationHelper {
 		return BlockTags.getAllTags().getTag(id);
 	}
 
+	// Use SerializableDataTypes.ATTRIBUTE_MODIFIER instead
+	@Deprecated
 	public static AttributeModifier readAttributeModifier(JsonElement jsonElement) {
 		if (jsonElement.isJsonObject()) {
 			JsonObject json = jsonElement.getAsJsonObject();
@@ -41,6 +45,8 @@ public class SerializationHelper {
 		throw new JsonSyntaxException("Attribute modifier needs to be a JSON object.");
 	}
 
+	// Use SerializableDataTypes.ATTRIBUTE_MODIFIER instead
+	@Deprecated
 	public static JsonElement writeAttributeModifier(AttributeModifier modifier) {
 		JsonObject obj = new JsonObject();
 		obj.addProperty("name", modifier.getName());
@@ -49,6 +55,8 @@ public class SerializationHelper {
 		return obj;
 	}
 
+	// Use SerializableDataTypes.ATTRIBUTE_MODIFIER instead
+	@Deprecated
 	public static AttributeModifier readAttributeModifier(FriendlyByteBuf buf) {
 		String modName = buf.readUtf();
 		double modValue = buf.readDouble();
@@ -56,6 +64,8 @@ public class SerializationHelper {
 		return new AttributeModifier(modName, modValue, AttributeModifier.Operation.fromValue(operation));
 	}
 
+	// Use SerializableDataTypes.ATTRIBUTE_MODIFIER instead
+	@Deprecated
 	public static void writeAttributeModifier(FriendlyByteBuf buf, AttributeModifier modifier) {
 		buf.writeUtf(modifier.getName());
 		buf.writeDouble(modifier.getAmount());

@@ -10,6 +10,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -21,7 +22,7 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 	// Should be set to the current path of the file that is being read. Allows using * in identifiers.
 	public static String CURRENT_PATH;
 
-	private final HashMap<String, Entry<?>> dataFields = new HashMap<>();
+    private final LinkedHashMap<String, Entry<?>> dataFields = new LinkedHashMap<>();
 
 	public SerializableData add(String name, SerializableDataType<?> type) {
 		this.dataFields.put(name, new Entry<>(type));
