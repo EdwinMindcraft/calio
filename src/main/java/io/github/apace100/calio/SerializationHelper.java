@@ -17,8 +17,6 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.HashMap;
-import java.util.Locale;
-import java.util.Optional;
 import java.util.function.Function;
 
 public class SerializationHelper {
