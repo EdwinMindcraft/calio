@@ -4,7 +4,6 @@ import com.mojang.blaze3d.platform.InputConstants;
 import dev.experimental.calio.api.CalioAPI;
 import dev.experimental.calio.common.network.CalioNetwork;
 import dev.experimental.calio.common.network.packet.C2SShareItemPacket;
-import io.github.apace100.calio.mixin.HandledScreenFocusedSlotAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.Slot;
@@ -26,9 +25,8 @@ public class CalioClientEventHandler {
 		if (event.type == TickEvent.Type.CLIENT && event.phase == TickEvent.Phase.START) {
 			Minecraft client = Minecraft.getInstance();
 			long window = client.getWindow().getWindow();
-			if (client.player != null && client.screen instanceof AbstractContainerScreen) {
-				HandledScreenFocusedSlotAccessor focusedSlotAccessor = (HandledScreenFocusedSlotAccessor) client.screen;
-				Slot focusedSlot = focusedSlotAccessor.getFocusedSlot();
+			if (client.player != null && client.screen instanceof AbstractContainerScreen<?> screen) {
+				Slot focusedSlot = screen.hoveredSlot;
 				boolean isCtrlPressed = InputConstants.isKeyDown(window, GLFW.GLFW_KEY_LEFT_CONTROL);
 				InputConstants.Key key = client.options.keyChat.getKey();
 				boolean isChatPressed = InputConstants.isKeyDown(window, key.getValue());

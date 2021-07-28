@@ -7,8 +7,8 @@ license="MIT"
 modId="calio"
 version="${version}"
 displayName="Calio"
-logoFile="assets/calio/icon.png"
-authors="apace100, EdwinMindcraft"
+logoFile= "icon.png"
+authors="apace100"
 description='''
 A simple library mod, mainly adds a serializable data system.
 '''

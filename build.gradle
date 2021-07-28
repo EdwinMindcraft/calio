@@ -1,6 +1,6 @@
 plugins {
 	id 'net.minecraftforge.gradle'
-	id 'org.spongepowered.mixin'
+	//id 'org.spongepowered.mixin'
 	id 'idea'
 }
 
@@ -18,9 +18,9 @@ repositories {
 	maven {url 'https://maven.architectury.dev'}
 }
 
-mixin {
-	add sourceSets.main, 'calio.mixins.refmap.json'
-}
+//mixin {
+//	add sourceSets.main, 'calio.mixins.refmap.json'
+//}
 
 sourceSets {
 	main {
@@ -40,7 +40,7 @@ minecraft {
 			workingDirectory file('run')
 			property 'forge.logging.markers', 'REGISTRIES'
 			property 'forge.logging.console.level', 'debug'
-            property 'mixin.debug', 'true'
+            //property 'mixin.debug', 'true'
 
 			mods {
 				calio {
@@ -52,7 +52,7 @@ minecraft {
 			workingDirectory file('run')
 			property 'forge.logging.markers', 'REGISTRIES'
 			property 'forge.logging.console.level', 'debug'
-            property 'mixin.debug', 'true'
+            //property 'mixin.debug', 'true'
 
 			mods {
 				calio {
@@ -64,7 +64,7 @@ minecraft {
 			workingDirectory file('run')
 			property 'forge.logging.markers', 'REGISTRIES'
 			property 'forge.logging.console.level', 'debug'
-            property 'mixin.debug', 'true'
+            //property 'mixin.debug', 'true'
 
             args '--all'
             args '--mod', 'calio'
@@ -104,8 +104,9 @@ jar {
 dependencies {
 	minecraft group: 'net.minecraftforge', name: 'forge', version: "${minecraft_version}-${forge_version}"
 	testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter', version: '5.6.2'
-	implementation group: 'org.spongepowered', name: 'mixin', version: '0.8.3'
     implementation group: 'org.jetbrains', name: 'annotations', version: '21.0.1'
+
+    //implementation group: 'org.spongepowered', name: 'mixin', version: '0.8.3'
 }
 
 jar {

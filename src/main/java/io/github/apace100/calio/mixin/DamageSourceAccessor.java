@@ -1,72 +1,84 @@
 package io.github.apace100.calio.mixin;
 
 import net.minecraft.world.damagesource.DamageSource;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.gen.Invoker;
 
 /**
  * On forge, use {@link DamageSource}'s methods instead.
  * On fabric, use an access widener.
  */
 @Deprecated
-@Mixin(DamageSource.class)
+//@Mixin(DamageSource.class)
 public interface DamageSourceAccessor {
 
 	/**
 	 * @deprecated Use {@link DamageSource#DamageSource(String)} instead
 	 */
-    @Invoker("<init>")
+	//@Invoker("<init>")
 	@Deprecated
-    static DamageSource createDamageSource(String name) {
-        throw new RuntimeException("Evil invoker exception! >:)");
-    }
+	static DamageSource createDamageSource(String name) {
+		return new DamageSource(name);
+	}
 
 	/**
 	 * @deprecated Use {@link DamageSource#bypassArmor()} instead
 	 */
-	@Invoker("bypassArmor")
+	//@Invoker("bypassArmor")
 	@Deprecated
-	DamageSource callSetBypassesArmor();
+	default DamageSource callSetBypassesArmor() {
+		return ((DamageSource) this).bypassArmor();
+	}
 
 	/**
 	 * @deprecated Use {@link DamageSource#bypassInvul()} instead
 	 */
-    @Invoker("bypassInvul")
+	//@Invoker("bypassInvul")
 	@Deprecated
-    DamageSource callSetOutOfWorld();
+	default DamageSource callSetOutOfWorld() {
+		return ((DamageSource) this).bypassInvul();
+	}
 
 	/**
 	 * @deprecated Use {@link DamageSource#bypassMagic()} instead
 	 */
-    @Invoker("bypassMagic")
+	//@Invoker("bypassMagic")
 	@Deprecated
-    DamageSource callSetUnblockable();
+	default DamageSource callSetUnblockable() {
+		return ((DamageSource) this).bypassMagic();
+	}
 
 	/**
 	 * @deprecated Use {@link DamageSource#setIsFire()} instead
 	 */
-    @Invoker("setIsFire")
+	//@Invoker("setIsFire")
 	@Deprecated
-    DamageSource callSetFire();
+	default DamageSource callSetFire() {
+		return ((DamageSource) this).setIsFire();
+	}
 
 	/**
 	 * @deprecated Use {@link DamageSource#setMagic()} instead
 	 */
-    @Invoker("setMagic")
+	//@Invoker("setMagic")
 	@Deprecated
-    DamageSource callSetUsesMagic();
+	default DamageSource callSetUsesMagic() {
+		return ((DamageSource) this).setMagic();
+	}
 
 	/**
 	 * @deprecated Use {@link DamageSource#setProjectile()} instead
 	 */
-    @Invoker("setProjectile")
+	//@Invoker("setProjectile")
 	@Deprecated
-    DamageSource callSetProjectile();
+	default DamageSource callSetProjectile() {
+		return ((DamageSource) this).setProjectile();
+	}
 
 	/**
 	 * @deprecated Use {@link DamageSource#setExplosion()} instead
 	 */
-    @Invoker("setExplosion")
+	//@Invoker("setExplosion")
 	@Deprecated
-    DamageSource callSetExplosive();
+	default DamageSource callSetExplosive() {
+		return ((DamageSource) this).setExplosion();
+	}
 }
