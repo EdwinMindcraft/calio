@@ -1,7 +1,10 @@
-package dev.experimental.calio.common;
+package io.github.edwinmindcraft.calio.common;
 
-import dev.experimental.calio.api.CalioAPI;
 import io.github.apace100.calio.Calio;
+import io.github.edwinmindcraft.calio.api.CalioAPI;
+import io.github.edwinmindcraft.calio.common.network.CalioNetwork;
+import io.github.edwinmindcraft.calio.common.network.packet.S2CDynamicRegistriesPacket;
+import io.github.edwinmindcraft.calio.common.registry.CalioDynamicRegistryManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -10,14 +13,20 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.MapItem;
 import net.minecraftforge.event.ItemAttributeModifierEvent;
+import net.minecraftforge.event.OnDatapackSyncEvent;
 import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fmllegacy.network.PacketDistributor;
 
 import java.util.List;
 
 @Mod.EventBusSubscriber(modid = CalioAPI.MODID)
 public class CalioEventHandler {
+	@SubscribeEvent
+	public static void onDatapack(OnDatapackSyncEvent event) {
+		CalioNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(event::getPlayer), new S2CDynamicRegistriesPacket(CalioDynamicRegistryManager.getInstance(event.getPlayerList().getServer())));
+	}
 
 	@SubscribeEvent
 	public static void updateAttributes(ItemAttributeModifierEvent event) {

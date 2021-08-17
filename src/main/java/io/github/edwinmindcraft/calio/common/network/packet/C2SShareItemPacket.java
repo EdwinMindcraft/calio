@@ -1,4 +1,4 @@
-package dev.experimental.calio.common.network.packet;
+package io.github.edwinmindcraft.calio.common.network.packet;
 
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.*;

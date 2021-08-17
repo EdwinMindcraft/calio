@@ -1,4 +1,4 @@
-package dev.experimental.calio.api.network;
+package io.github.edwinmindcraft.calio.api.network;
 
 import com.google.common.collect.ImmutableSet;
 import com.mojang.datafixers.util.Either;
@@ -9,7 +9,6 @@ import io.github.apace100.calio.FilterableWeightedList;
 import io.github.apace100.calio.data.SerializableDataTypes;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.util.random.SimpleWeightedRandomList;
 
 import java.util.*;
 import java.util.function.Function;

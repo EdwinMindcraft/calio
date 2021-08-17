@@ -1,6 +1,6 @@
-package dev.experimental.calio.common.network.packet;
+package io.github.edwinmindcraft.calio.common.network.packet;
 
-import dev.experimental.calio.api.CalioAPI;
+import io.github.edwinmindcraft.calio.api.CalioAPI;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.fmllegacy.network.NetworkEvent;
 

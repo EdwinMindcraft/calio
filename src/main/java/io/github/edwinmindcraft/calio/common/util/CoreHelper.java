@@ -1,4 +1,4 @@
-package dev.experimental.calio.common.util;
+package io.github.edwinmindcraft.calio.common.util;
 
 import io.github.apace100.calio.NbtConstants;
 import net.minecraft.nbt.CompoundTag;

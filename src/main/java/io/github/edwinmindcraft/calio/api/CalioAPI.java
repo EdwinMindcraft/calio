@@ -1,7 +1,7 @@
-package dev.experimental.calio.api;
+package io.github.edwinmindcraft.calio.api;
 
-import dev.experimental.calio.api.registry.ICalioDynamicRegistryManager;
-import dev.experimental.calio.common.registry.CalioDynamicRegistryManager;
+import io.github.edwinmindcraft.calio.api.registry.ICalioDynamicRegistryManager;
+import io.github.edwinmindcraft.calio.common.registry.CalioDynamicRegistryManager;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.fmllegacy.server.ServerLifecycleHooks;

@@ -11,7 +11,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
-import dev.experimental.calio.api.network.CalioCodecHelper;
+import io.github.edwinmindcraft.calio.api.network.CalioCodecHelper;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.FilterableWeightedList;
 import io.netty.buffer.Unpooled;

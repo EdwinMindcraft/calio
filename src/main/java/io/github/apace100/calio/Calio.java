@@ -1,6 +1,6 @@
 package io.github.apace100.calio;
 
-import dev.experimental.calio.api.CalioAPI;
+import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.apace100.calio.util.ClientTagManagerGetter;
 import io.github.apace100.calio.util.ServerTagManagerGetter;
 import io.github.apace100.calio.util.TagManagerGetter;

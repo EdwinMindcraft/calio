@@ -74,7 +74,7 @@ public class SerializationHelper {
 		if (jsonElement.isJsonObject()) {
 			JsonObject json = jsonElement.getAsJsonObject();
 			String effect = GsonHelper.getAsString(json, "effect");
-			MobEffect effectOptional = ForgeRegistries.POTIONS.getValue(ResourceLocation.tryParse(effect));
+			MobEffect effectOptional = ForgeRegistries.MOB_EFFECTS.getValue(ResourceLocation.tryParse(effect));
 			if (effectOptional == null)
 				throw new JsonSyntaxException("Error reading status effect: could not find status effect with id: " + effect);
 			int duration = GsonHelper.getAsInt(json, "duration", 100);
@@ -106,7 +106,7 @@ public class SerializationHelper {
 		boolean ambient = buf.readBoolean();
 		boolean showParticles = buf.readBoolean();
 		boolean showIcon = buf.readBoolean();
-		return new MobEffectInstance(ForgeRegistries.POTIONS.getValue(effect), duration, amplifier, ambient, showParticles, showIcon);
+		return new MobEffectInstance(ForgeRegistries.MOB_EFFECTS.getValue(effect), duration, amplifier, ambient, showParticles, showIcon);
 	}
 
 	public static void writeStatusEffect(FriendlyByteBuf buf, MobEffectInstance statusEffectInstance) {

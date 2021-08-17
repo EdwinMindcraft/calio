@@ -2,7 +2,7 @@ pluginManagement {
     resolutionStrategy {
         eachPlugin({
             if (requested.id.namespace == 'net.minecraftforge')
-                it.useModule(group: 'net.minecraftforge.gradle', name:'ForgeGradle', version: '5.1.12')
+                it.useModule(group: 'net.minecraftforge.gradle', name:'ForgeGradle', version: '5.1.15')
             if (requested.id.namespace == 'org.spongepowered')
                 it.useModule(group: 'org.spongepowered', name: 'mixingradle', version: '0.7-SNAPSHOT')
         })
@@ -18,4 +18,4 @@ pluginManagement {
     }
 }
 
-rootProject.name = 'calio'
+rootProject.name = 'calio-forge'

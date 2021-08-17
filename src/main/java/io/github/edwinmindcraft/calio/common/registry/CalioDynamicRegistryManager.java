@@ -1,9 +1,9 @@
-package dev.experimental.calio.common.registry;
+package io.github.edwinmindcraft.calio.common.registry;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.Lifecycle;
-import dev.experimental.calio.api.event.CalioDynamicRegistryEvent;
-import dev.experimental.calio.api.registry.ICalioDynamicRegistryManager;
+import io.github.edwinmindcraft.calio.api.event.CalioDynamicRegistryEvent;
+import io.github.edwinmindcraft.calio.api.registry.ICalioDynamicRegistryManager;
 import net.minecraft.core.MappedRegistry;
 import net.minecraft.core.Registry;
 import net.minecraft.core.WritableRegistry;

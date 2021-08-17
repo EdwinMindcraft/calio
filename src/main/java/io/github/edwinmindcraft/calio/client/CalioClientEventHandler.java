@@ -1,9 +1,9 @@
-package dev.experimental.calio.client;
+package io.github.edwinmindcraft.calio.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import dev.experimental.calio.api.CalioAPI;
-import dev.experimental.calio.common.network.CalioNetwork;
-import dev.experimental.calio.common.network.packet.C2SShareItemPacket;
+import io.github.edwinmindcraft.calio.api.CalioAPI;
+import io.github.edwinmindcraft.calio.common.network.CalioNetwork;
+import io.github.edwinmindcraft.calio.common.network.packet.C2SShareItemPacket;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.Slot;

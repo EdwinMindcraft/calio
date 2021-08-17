@@ -1,6 +1,6 @@
-package dev.experimental.calio.api.event;
+package io.github.edwinmindcraft.calio.api.event;
 
-import dev.experimental.calio.api.registry.ICalioDynamicRegistryManager;
+import io.github.edwinmindcraft.calio.api.registry.ICalioDynamicRegistryManager;
 import net.minecraftforge.eventbus.api.Event;
 
 public class CalioDynamicRegistryEvent extends Event {

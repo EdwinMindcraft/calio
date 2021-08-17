@@ -1,4 +1,4 @@
-package dev.experimental.calio.api.registry;
+package io.github.edwinmindcraft.calio.api.registry;
 
 import com.mojang.serialization.Codec;
 import net.minecraft.core.Registry;
