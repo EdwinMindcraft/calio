@@ -106,7 +106,7 @@ public class SerializableDataType<T> implements Codec<T> {
 		for (T enumConstant : enumConstants)
 			map.put(enumConstant.name().toLowerCase(Locale.ROOT), enumConstant);
 		if (additionalMap != null)
-			additionalMap.forEach((s, t) -> map.put(s.toLowerCase(Locale.ROOT), t));
+			additionalMap.forEach((s, t) -> map.forcePut(s.toLowerCase(Locale.ROOT), t));
 		Codec<T> stringCodec = Codec.STRING.xmap(x -> map.get(x.toLowerCase(Locale.ROOT)), x -> map.inverse().get(x));
 		return new SerializableDataType<>(dataClass, Codec.either(ordinalCodec, stringCodec).xmap(either -> either.map(Function.identity(), Function.identity()), Either::left));
 	}

@@ -24,8 +24,9 @@ import java.util.List;
 @Mod.EventBusSubscriber(modid = CalioAPI.MODID)
 public class CalioEventHandler {
 	@SubscribeEvent
-	public static void onDatapack(OnDatapackSyncEvent event) {
-		CalioNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(event::getPlayer), new S2CDynamicRegistriesPacket(CalioDynamicRegistryManager.getInstance(event.getPlayerList().getServer())));
+ 	public static void onDatapack(OnDatapackSyncEvent event) {
+		PacketDistributor.PacketTarget target = event.getPlayer() == null ? PacketDistributor.ALL.noArg() : PacketDistributor.PLAYER.with(event::getPlayer);
+		CalioNetwork.CHANNEL.send(target, new S2CDynamicRegistriesPacket(CalioDynamicRegistryManager.getInstance(event.getPlayerList().getServer())));
 	}
 
 	@SubscribeEvent

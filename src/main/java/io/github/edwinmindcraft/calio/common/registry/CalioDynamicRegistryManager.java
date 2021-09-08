@@ -35,16 +35,20 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	public CalioDynamicRegistryManager() {
 		this.registries = new HashMap<>();
 		this.definitions = new HashMap<>();
-		MinecraftForge.EVENT_BUS.register(new CalioDynamicRegistryEvent(this));
+		MinecraftForge.EVENT_BUS.post(new CalioDynamicRegistryEvent(this));
 	}
 
 	public static CalioDynamicRegistryManager getInstance(MinecraftServer server) {
-		if (server == null) return clientInstance;
-		return INSTANCES.get(server);
+		if (server == null) {
+			if (clientInstance == null)
+				initializeClient();
+			return clientInstance;
+		}
+		return addInstance(server);
 	}
 
-	public static void addInstance(MinecraftServer server) {
-		INSTANCES.computeIfAbsent(server, s -> new CalioDynamicRegistryManager());
+	public static CalioDynamicRegistryManager addInstance(MinecraftServer server) {
+		return INSTANCES.computeIfAbsent(server, s -> new CalioDynamicRegistryManager());
 	}
 
 	public static void removeInstance(MinecraftServer server) {
