@@ -14,15 +14,15 @@ A simple library mod, mainly adds a serializable data system.
 '''
 
 [[dependencies.calio]]
-modId="minecraft"
-mandatory=true
-versionRange="[1.17.1]"
-ordering="NONE"
-side="BOTH"
+    modId="forge"
+    mandatory=true
+    versionRange="[37.0.34,)"
+    ordering="NONE"
+    side="BOTH"
 
 [[dependencies.calio]]
-modId="forge"
-mandatory=true
-versionRange="[37.0.34,)"
-ordering="NONE"
-side="BOTH"
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.17.1]"
+    ordering="NONE"
+    side="BOTH"

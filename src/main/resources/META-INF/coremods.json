@@ -1,4 +1,4 @@
 {
-  "accessors": "META-INF/coremods/accessors.js",
-  "tooltip": "META-INF/coremods/tooltip.js"
+  "accessors": "coremods/accessors.js",
+  "tooltip": "coremods/tooltip.js"
 }

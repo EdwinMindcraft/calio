@@ -19,9 +19,9 @@ repositories {
 	maven {url 'https://maven.architectury.dev'}
 }
 
-mixin {
+/*mixin {
 	add sourceSets.main, 'calio.mixins.refmap.json'
-}
+}*/
 
 sourceSets {
 	main {
@@ -107,9 +107,6 @@ jar {
 				"Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
 		])
 	}
-	from("LICENSE") {
-		rename { "${it}_${project.archivesBaseName}"}
-	}
 }
 
 task sourceJar(type: Jar, dependsOn: processResources) {
@@ -122,6 +119,9 @@ jar.finalizedBy('reobfJar')
 publishing {
     publications {
         mavenJava(MavenPublication) {
+			artifactId = project.archives_base_name
+			version = project.mod_version
+			groupId = project.maven_group
             artifact jar
 			artifact sourceJar
         }
