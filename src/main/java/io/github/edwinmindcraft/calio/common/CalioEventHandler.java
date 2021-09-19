@@ -12,12 +12,15 @@ import net.minecraft.network.chat.TextComponent;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.MapItem;
+import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.ItemAttributeModifierEvent;
 import net.minecraftforge.event.OnDatapackSyncEvent;
 import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fmllegacy.network.PacketDistributor;
+import net.minecraftforge.fmllegacy.server.ServerLifecycleHooks;
+import net.minecraftforge.fmlserverevents.FMLServerStoppedEvent;
 
 import java.util.List;
 
@@ -27,6 +30,17 @@ public class CalioEventHandler {
  	public static void onDatapack(OnDatapackSyncEvent event) {
 		PacketDistributor.PacketTarget target = event.getPlayer() == null ? PacketDistributor.ALL.noArg() : PacketDistributor.PLAYER.with(event::getPlayer);
 		CalioNetwork.CHANNEL.send(target, new S2CDynamicRegistriesPacket(CalioDynamicRegistryManager.getInstance(event.getPlayerList().getServer())));
+	}
+
+	@SubscribeEvent
+	public static void onServerReload(AddReloadListenerEvent event) {
+		CalioDynamicRegistryManager instance = CalioDynamicRegistryManager.getInstance(ServerLifecycleHooks.getCurrentServer());
+		event.addListener(instance);
+	}
+
+	@SubscribeEvent
+	public static void onServerStopped(FMLServerStoppedEvent event) {
+		CalioDynamicRegistryManager.removeInstance(event.getServer());
 	}
 
 	@SubscribeEvent
