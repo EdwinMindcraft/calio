@@ -13,4 +13,16 @@ public class CalioDynamicRegistryEvent extends Event {
 	public ICalioDynamicRegistryManager getRegistryManager() {
 		return this.registryManager;
 	}
+
+	public static class Initialize extends CalioDynamicRegistryEvent {
+		public Initialize(ICalioDynamicRegistryManager registryManager) {
+			super(registryManager);
+		}
+	}
+
+	public static class LoadComplete extends CalioDynamicRegistryEvent {
+		public LoadComplete(ICalioDynamicRegistryManager registryManager) {
+			super(registryManager);
+		}
+	}
 }

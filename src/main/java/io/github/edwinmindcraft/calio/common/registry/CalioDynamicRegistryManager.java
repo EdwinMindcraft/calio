@@ -3,7 +3,6 @@ package io.github.edwinmindcraft.calio.common.registry;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -13,6 +12,7 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.Lifecycle;
 import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.api.event.CalioDynamicRegistryEvent;
+import io.github.edwinmindcraft.calio.api.event.DynamicRegistrationEvent;
 import io.github.edwinmindcraft.calio.api.registry.DynamicEntryFactory;
 import io.github.edwinmindcraft.calio.api.registry.DynamicEntryValidator;
 import io.github.edwinmindcraft.calio.api.registry.ICalioDynamicRegistryManager;
@@ -23,16 +23,12 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
-import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.registries.IForgeRegistry;
 import net.minecraftforge.registries.IForgeRegistryEntry;
 import org.apache.commons.lang3.Validate;
 import org.jetbrains.annotations.NotNull;
@@ -45,9 +41,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -72,7 +66,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		this.factories = new HashMap<>();
 		this.validators = new HashMap<>();
 		this.lock = false;
-		MinecraftForge.EVENT_BUS.post(new CalioDynamicRegistryEvent(this));
+		MinecraftForge.EVENT_BUS.post(new CalioDynamicRegistryEvent.Initialize(this));
 		this.lock = true;
 		List<ResourceKey<?>> handled = new ArrayList<>();
 		int prevSize;
@@ -113,8 +107,9 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		CompletableFuture<?>[] completableFutures = this.factories.entrySet().stream().map(x -> CompletableFuture.runAsync(() -> map.put(x.getKey(), x.getValue().reload(input.get(x.getKey()))), executor)).toArray(CompletableFuture[]::new);
 		return CompletableFuture.allOf(completableFutures).thenAcceptAsync(x -> {
 			for (ResourceKey<?> resourceKey : this.validatorOrder) {
-				this.validate((ResourceKey)resourceKey, (Validator) this.validators.get(resourceKey), (Map)map.get(resourceKey));
+				this.validate((ResourceKey) resourceKey, (Validator) this.validators.get(resourceKey), (Map) map.get(resourceKey));
 			}
+			MinecraftForge.EVENT_BUS.post(new CalioDynamicRegistryEvent.LoadComplete(this));
 		}, executor);
 	}
 
@@ -201,11 +196,11 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	}
 
 	@Override
-	public <T> void addValidation(ResourceKey<Registry<T>> key, DynamicEntryValidator<T> validator, @NotNull ResourceKey<?>... after) {
+	public <T> void addValidation(ResourceKey<Registry<T>> key, DynamicEntryValidator<T> validator, Class<T> eventClass, @NotNull ResourceKey<?>... after) {
 		Validate.isTrue(!this.lock, "Cannot add validators after the dynamic registry manager has initialized");
 		if (this.validators.containsKey(key))
 			throw new IllegalArgumentException("Reload factory for registry " + key + " is already added.");
-		this.validators.put(key, new Validator<T>(key, validator, after));
+		this.validators.put(key, new Validator<>(key, validator, eventClass, after));
 	}
 
 	@Override
@@ -254,14 +249,25 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		});
 	}
 
-	private record Validator<T>(ResourceKey<Registry<T>> key, DynamicEntryValidator<T> validator, ResourceKey<?>[] dependencies) {
+	private record Validator<T>(ResourceKey<Registry<T>> key, DynamicEntryValidator<T> validator, Class<T> eventClass,
+								ResourceKey<?>[] dependencies) {
 		public T validate(ResourceKey<T> entry, T input, ICalioDynamicRegistryManager manager) {
-			DataResult<T> result = this.validator().validate(input, manager);
+			DataResult<T> result = this.validator().validate(entry.location(), input, manager);
 			if (result.error().isPresent()) {
 				CalioAPI.LOGGER.error("Validation for {} failed with error: {}", entry, result.error().get());
 				return null;
 			} else {
-				return result.getOrThrow(false, s -> {});
+				T t = result.getOrThrow(false, s -> {});
+				if (this.eventClass() != null) {
+					DynamicRegistrationEvent<T> event = new DynamicRegistrationEvent<>(this.eventClass(), entry.location(), input);
+					if (MinecraftForge.EVENT_BUS.post(event)) {
+						if (event.getCancellationReason() != null)
+							CalioAPI.LOGGER.info("Registration of {} was cancelled: {}", entry, event.getCancellationReason());
+						return null;
+					}
+					return event.getNewEntry();
+				}
+				return t;
 			}
 		}
 	}
@@ -313,7 +319,11 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 
 		public Map<ResourceLocation, T> reload(Map<ResourceLocation, List<JsonElement>> input) {
 			ImmutableMap.Builder<ResourceLocation, T> builder = ImmutableMap.builder();
-			input.forEach((location, jsonElements) -> builder.put(location, this.factory().accept(location, jsonElements)));
+			input.forEach((location, jsonElements) -> {
+				T result = this.factory().accept(location, jsonElements);
+				if (result != null)
+					builder.put(location, result);
+			});
 			return builder.build();
 		}
 	}

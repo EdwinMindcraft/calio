@@ -1,7 +1,10 @@
 package io.github.edwinmindcraft.calio.api.registry;
 
 import com.mojang.serialization.DataResult;
+import net.minecraft.resources.ResourceLocation;
+import org.jetbrains.annotations.NotNull;
 
 public interface DynamicEntryValidator<T> {
-	DataResult<T> validate(T input, ICalioDynamicRegistryManager manager);
+	@NotNull
+	DataResult<T> validate(@NotNull ResourceLocation location, @NotNull T input, @NotNull ICalioDynamicRegistryManager manager);
 }

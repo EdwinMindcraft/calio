@@ -4,6 +4,7 @@ import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.apace100.calio.util.ClientTagManagerGetter;
 import io.github.apace100.calio.util.ServerTagManagerGetter;
 import io.github.apace100.calio.util.TagManagerGetter;
+import io.github.edwinmindcraft.calio.common.CalioCommon;
 import io.github.edwinmindcraft.calio.common.network.CalioNetwork;
 import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.core.Registry;
@@ -27,6 +28,7 @@ public class Calio {
 		tagManagerGetter = DistExecutor.safeRunForDist(() -> ClientTagManagerGetter::new, () -> ServerTagManagerGetter::new);
 		CriteriaTriggers.register(CodeTriggerCriterion.INSTANCE);
 		CalioNetwork.register();
+		CalioCommon.initialize();
 	}
 
 	public static boolean hasNonItalicName(ItemStack stack) {

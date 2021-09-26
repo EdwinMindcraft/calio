@@ -2,6 +2,7 @@ package io.github.edwinmindcraft.calio.api.registry;
 
 import com.mojang.serialization.Codec;
 import io.github.apace100.calio.data.MultiJsonDataLoader;
+import io.github.edwinmindcraft.calio.api.event.DynamicRegistrationEvent;
 import net.minecraft.core.Registry;
 import net.minecraft.core.WritableRegistry;
 import net.minecraft.resources.ResourceKey;
@@ -84,9 +85,21 @@ public interface ICalioDynamicRegistryManager extends PreparableReloadListener {
 	 *
 	 * @param key       The key of the registry to validate entries for.
 	 * @param validator The validator used.
+	 * @param eventClass The class used forge the {@link DynamicRegistrationEvent}. If null, the event won't fire.
 	 * @param after     The registries that are required to exist before this validator runs.
 	 */
-	<T> void addValidation(ResourceKey<Registry<T>> key, DynamicEntryValidator<T> validator, @NotNull ResourceKey<?>... after);
+	<T> void addValidation(ResourceKey<Registry<T>> key, DynamicEntryValidator<T> validator, @Nullable Class<T> eventClass, @NotNull ResourceKey<?>... after);
+
+	/**
+	 * Adds a validation step to the created entries.
+	 *
+	 * @param key       The key of the registry to validate entries for.
+	 * @param validator The validator used.
+	 * @param after     The registries that are required to exist before this validator runs.
+	 */
+	default <T> void addValidation(ResourceKey<Registry<T>> key, DynamicEntryValidator<T> validator, @NotNull ResourceKey<?>... after) {
+		this.addValidation(key, validator, null, after);
+	}
 
 	/**
 	 * Resets the given registry, creating a new one from the input data.

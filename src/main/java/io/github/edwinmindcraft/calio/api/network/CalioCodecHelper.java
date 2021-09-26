@@ -1,6 +1,7 @@
 package io.github.edwinmindcraft.calio.api.network;
 
 import com.google.common.collect.ImmutableSet;
+import com.google.gson.JsonElement;
 import com.mojang.datafixers.util.Either;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
@@ -8,7 +9,10 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.apace100.calio.FilterableWeightedList;
 import io.github.apace100.calio.data.SerializableDataTypes;
 import net.minecraft.core.Registry;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.*;
 import java.util.function.Function;
@@ -81,4 +85,26 @@ public class CalioCodecHelper {
 	public static <T> Codec<Set<T>> setOf(Codec<T> source) {
 		return Codec.either(source, source.listOf()).xmap(x -> x.map(ImmutableSet::of, HashSet::new), x -> Either.right(new ArrayList<>(x)));
 	}
+
+	public static final Codec<Component> COMPONENT_CODEC = new IContextAwareCodec<>() {
+		@Override
+		public JsonElement asJson(Component input) {
+			return Component.Serializer.toJsonTree(input);
+		}
+
+		@Override
+		public Component fromJson(JsonElement input) {
+			return Component.Serializer.fromJson(input);
+		}
+
+		@Override
+		public void encode(Component input, FriendlyByteBuf buf) {
+			buf.writeComponent(input);
+		}
+
+		@Override
+		public Component decode(FriendlyByteBuf buf) {
+			return buf.readComponent();
+		}
+	};
 }
