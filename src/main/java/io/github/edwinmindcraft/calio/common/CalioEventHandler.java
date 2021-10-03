@@ -22,7 +22,6 @@ import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fmllegacy.network.PacketDistributor;
-import net.minecraftforge.fmllegacy.server.ServerLifecycleHooks;
 import net.minecraftforge.fmlserverevents.FMLServerStoppedEvent;
 
 import java.util.List;
@@ -30,20 +29,21 @@ import java.util.List;
 @Mod.EventBusSubscriber(modid = CalioAPI.MODID)
 public class CalioEventHandler {
 	@SubscribeEvent
- 	public static void onDatapack(OnDatapackSyncEvent event) {
+	public static void onDatapack(OnDatapackSyncEvent event) {
 		PacketDistributor.PacketTarget target = event.getPlayer() == null ? PacketDistributor.ALL.noArg() : PacketDistributor.PLAYER.with(event::getPlayer);
-		CalioNetwork.CHANNEL.send(target, new S2CDynamicRegistriesPacket(CalioDynamicRegistryManager.getInstance(event.getPlayerList().getServer())));
+		CalioNetwork.CHANNEL.send(target, new S2CDynamicRegistriesPacket(CalioDynamicRegistryManager.getInstance(event.getPlayerList().getServer().registryAccess())));
 	}
 
 	@SubscribeEvent
 	public static void onServerReload(AddReloadListenerEvent event) {
-		CalioDynamicRegistryManager instance = CalioDynamicRegistryManager.getInstance(ServerLifecycleHooks.getCurrentServer());
+		CalioDynamicRegistryManager instance = CalioDynamicRegistryManager.getInstance(event.getDataPackRegistries().tagManager.registryAccess);
 		event.addListener(instance);
 	}
 
 	@SubscribeEvent
 	public static void onServerStopped(FMLServerStoppedEvent event) {
-		CalioDynamicRegistryManager.removeInstance(event.getServer());
+		CalioAPI.LOGGER.info("Removing Dynamic Registries for: " + event.getServer());
+		CalioDynamicRegistryManager.removeInstance(event.getServer().registryAccess());
 	}
 
 	@SubscribeEvent

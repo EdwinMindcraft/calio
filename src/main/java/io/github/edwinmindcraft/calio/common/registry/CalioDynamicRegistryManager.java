@@ -18,6 +18,7 @@ import io.github.edwinmindcraft.calio.api.registry.DynamicEntryValidator;
 import io.github.edwinmindcraft.calio.api.registry.ICalioDynamicRegistryManager;
 import net.minecraft.core.MappedRegistry;
 import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.WritableRegistry;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
@@ -51,7 +52,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	private static final Gson GSON = new GsonBuilder().create();
 	private static final int FILE_SUFFIX_LENGTH = ".json".length();
 
-	private static final Map<MinecraftServer, CalioDynamicRegistryManager> INSTANCES = new ConcurrentHashMap<>();
+	private static final Map<RegistryAccess, CalioDynamicRegistryManager> INSTANCES = new ConcurrentHashMap<>();
 	private static CalioDynamicRegistryManager clientInstance = null;
 	private boolean lock;
 	private final Map<ResourceKey<?>, MappedRegistry<?>> registries;
@@ -106,6 +107,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	private CompletableFuture<Void> reload(Map<ResourceKey<?>, Map<ResourceLocation, List<JsonElement>>> input, Executor executor) {
+		input.keySet().forEach(x -> this.reset((ResourceKey) x));
 		ConcurrentHashMap<ResourceKey<?>, Map<ResourceLocation, ?>> map = new ConcurrentHashMap<>();
 		CompletableFuture<?>[] completableFutures = this.factories.entrySet().stream()
 				.map(x -> CompletableFuture.runAsync(() -> map.put(x.getKey(), x.getValue().reload(input.get(x.getKey()))), executor))
@@ -115,7 +117,16 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 				this.validate((ResourceKey) resourceKey, (Validator) this.validators.get(resourceKey), (Map) map.get(resourceKey));
 			}
 			MinecraftForge.EVENT_BUS.post(new CalioDynamicRegistryEvent.LoadComplete(this));
+			this.dump();
 		}, executor);
+	}
+
+	public void dump() {
+		CalioAPI.LOGGER.info("Calio dynamic registry dump:");
+		this.registries.values().forEach(reg -> {
+			CalioAPI.LOGGER.info("{}: {} entries", reg.key().location(), reg.keySet().size());
+			reg.entrySet().forEach(entry -> CalioAPI.LOGGER.info("  {}: {}", entry.getKey().location(), entry.getValue()));
+		});
 	}
 
 	private <T> void validate(ResourceKey<Registry<T>> key, @Nullable Validator<T> validator, Map<ResourceLocation, T> entries) {
@@ -132,7 +143,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		});
 	}
 
-	public static CalioDynamicRegistryManager getInstance(MinecraftServer server) {
+	public static CalioDynamicRegistryManager getInstance(RegistryAccess server) {
 		if (server == null) {
 			if (clientInstance == null)
 				initializeClient();
@@ -141,11 +152,11 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		return addInstance(server);
 	}
 
-	public static CalioDynamicRegistryManager addInstance(MinecraftServer server) {
+	public static CalioDynamicRegistryManager addInstance(RegistryAccess server) {
 		return INSTANCES.computeIfAbsent(server, s -> new CalioDynamicRegistryManager());
 	}
 
-	public static void removeInstance(MinecraftServer server) {
+	public static void removeInstance(RegistryAccess server) {
 		INSTANCES.remove(server);
 	}
 
@@ -177,6 +188,8 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		for (int i = 0; i < count; i++) {
 			ResourceKey<T> objectKey = ResourceKey.create(key, buffer.readResourceLocation());
 			T decode = buffer.readWithCodec(codec);
+			if (decode instanceof IForgeRegistryEntry<?> fre)
+				fre.setRegistryName(objectKey.location());
 			registry.register(objectKey, decode, Lifecycle.stable());
 		}
 	}

@@ -11,6 +11,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
+import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.api.network.CalioCodecHelper;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.FilterableWeightedList;
@@ -67,7 +68,7 @@ public class SerializableDataType<T> implements Codec<T> {
 	}
 
 	public static <T> boolean isDataContext(DynamicOps<T> ops) {
-		return ops.compressMaps() && ops instanceof JsonElement;
+		return !ops.compressMaps() && ops instanceof JsonOps;
 	}
 
 	public static <T> SerializableDataType<List<T>> list(SerializableDataType<T> singleDataType) {
@@ -158,16 +159,17 @@ public class SerializableDataType<T> implements Codec<T> {
 			try {
 				return DataResult.success(Pair.of(this.read.apply(jsonElement), ops.empty()));
 			} catch (Exception e) {
-				return DataResult.error(e.getMessage());
+				return DataResult.error("At " + this.dataClass.getSimpleName() + ": " + e.getMessage());
 			}
 		}
 
 		return ops.getByteBuffer(input).flatMap(x -> {
 			FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.copiedBuffer(x));
 			try {
-				return DataResult.success(Pair.of(this.receive.apply(buffer), ops.empty()));
+				Pair<T, T1> pair = Pair.of(this.receive.apply(buffer), ops.empty());
+				return DataResult.success(pair);
 			} catch (Exception e) {
-				return DataResult.error(e.getMessage());
+				return DataResult.error("At " + this.dataClass.getSimpleName() + ": " + e.getMessage());
 			} finally {
 				buffer.release();
 			}
@@ -176,24 +178,30 @@ public class SerializableDataType<T> implements Codec<T> {
 
 	@Override
 	public <T1> DataResult<T1> encode(T input, DynamicOps<T1> ops, T1 prefix) {
-		if (this.codec != null)
-			return this.codec.encode(input, ops, prefix);
+		if (this.codec != null) {
+			try {
+				return this.codec.encode(input, ops, prefix);
+			} catch (Throwable t) {
+				CalioAPI.LOGGER.error("Error", t);
+				return DataResult.error("Error caught while encoding " + this.dataClass.getSimpleName() + ": " + input + ":" + t.getMessage());
+			}
+		}
 		if (isDataContext(ops)) {
 			if (this.write == null)
 				return DataResult.error("Writing is unsupported for type: " + this.dataClass.getSimpleName());
 			try {
 				return DataResult.success(JsonOps.INSTANCE.convertTo(ops, this.write.apply(input)));
 			} catch (Exception e) {
-				return DataResult.error(e.getMessage());
+				return DataResult.error("At " + this.dataClass.getSimpleName() + ": " + e.getMessage());
 			}
 		}
 
 		FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
 		try {
-			this.receive.apply(buffer);
+			this.send.accept(buffer, input);
 			return DataResult.success(ops.createByteList(buffer.nioBuffer()));
 		} catch (Exception e) {
-			return DataResult.error(e.getMessage());
+			return DataResult.error("At " + this.dataClass.getSimpleName() + ": " + e.getMessage());
 		} finally {
 			buffer.release();
 		}

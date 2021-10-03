@@ -4,6 +4,7 @@ import io.github.edwinmindcraft.calio.api.ability.IAbilityHolder;
 import io.github.edwinmindcraft.calio.api.registry.ICalioDynamicRegistryManager;
 import io.github.edwinmindcraft.calio.common.registry.CalioDynamicRegistryManager;
 import io.github.edwinmindcraft.calio.common.util.CoreHelper;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.Entity;
@@ -35,10 +36,16 @@ public class CalioAPI {
 	}
 
 	public static ICalioDynamicRegistryManager getDynamicRegistries() {
-		return getDynamicRegistries(EffectiveSide.get().isClient() ? null : ServerLifecycleHooks.getCurrentServer());
+		RegistryAccess registryAccess = EffectiveSide.get().isClient() ? null : ServerLifecycleHooks.getCurrentServer() != null ? ServerLifecycleHooks.getCurrentServer().registryAccess() : RegistryAccess.builtin();
+		return getDynamicRegistries(registryAccess);
 	}
 
 	public static ICalioDynamicRegistryManager getDynamicRegistries(MinecraftServer server) {
+		RegistryAccess registryAccess = EffectiveSide.get().isClient() ? null : server != null ? server.registryAccess() : RegistryAccess.builtin();
+		return CalioDynamicRegistryManager.getInstance(registryAccess);
+	}
+
+	public static ICalioDynamicRegistryManager getDynamicRegistries(RegistryAccess server) {
 		return CalioDynamicRegistryManager.getInstance(server);
 	}
 

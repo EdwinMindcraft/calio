@@ -1,11 +1,13 @@
 package io.github.edwinmindcraft.calio.api.network;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.gson.*;
 import com.mojang.datafixers.util.Either;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
+import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.apace100.calio.FilterableWeightedList;
 import io.github.apace100.calio.data.SerializableDataTypes;
@@ -78,6 +80,16 @@ public class CalioCodecHelper {
 	public static <T> Codec<List<T>> optionalListOf(Codec<Optional<T>> source) {
 		return Codec.either(source, source.listOf()).xmap(x -> x.map(Optional::stream, y -> y.stream().flatMap(Optional::stream)).collect(Collectors.toList()),
 				objects -> Either.right(objects.stream().filter(Objects::nonNull).map(Optional::of).collect(Collectors.toList())));
+	}
+
+	public static <T> MapCodec<List<T>> listOf(Codec<T> source, String singular, String plural) {
+		return Codec.mapEither(source.optionalFieldOf(singular), listOf(source).optionalFieldOf(plural, ImmutableList.of())).xmap(x -> x.map(opt -> opt.stream().toList(), Function.identity()), ls -> {
+			if (ls.isEmpty())
+				return Either.left(Optional.empty());
+			if (ls.size() == 1)
+				return Either.left(Optional.of(ls.get(0)));
+			return Either.right(ls);
+		});
 	}
 
 	/**

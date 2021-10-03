@@ -1,14 +1,15 @@
 package io.github.apace100.calio.data;
 
 import com.google.common.collect.HashBiMap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSyntaxException;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.SerializationHelper;
@@ -50,6 +51,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 
 public final class SerializableDataTypes {
 
@@ -196,40 +198,23 @@ public final class SerializableDataTypes {
 			tag -> Calio.getTagManager().getIdOrThrow(Registry.ENTITY_TYPE_REGISTRY, tag, RuntimeException::new),
 			id -> new IdentifiedTag<>(Registry.ENTITY_TYPE_REGISTRY, id));
 
-	public static final SerializableDataType<List<Item>> INGREDIENT_ENTRY = SerializableDataType.compound(ClassUtil.castClass(List.class),
-			new SerializableData()
-					.add("item", ITEM, null)
-					.add("tag", ITEM_TAG, null),
-			dataInstance -> {
-				boolean tagPresent = dataInstance.isPresent("tag");
-				boolean itemPresent = dataInstance.isPresent("item");
-				if (tagPresent == itemPresent) {
-					throw new JsonParseException("An ingredient entry is either a tag or an item, " + (tagPresent ? "not both" : "one has to be provided."));
+	public static final SerializableDataType<List<Item>> INGREDIENT_ENTRY = new SerializableDataType<>(ClassUtil.castClass(List.class), RecordCodecBuilder.create(instance -> instance.group(
+			ITEM.optionalFieldOf("item").forGetter(x -> x.size() == 1 ? Optional.of(x.get(0)) : Optional.empty()),
+			ITEM_TAG.optionalFieldOf("tag").forGetter(items -> {
+				if (items.size() == 1)
+					return Optional.empty();
+				TagContainer tagManager = Calio.getTagManager();
+				TagCollection<Item> tagGroup = tagManager.getOrEmpty(Registry.ITEM_REGISTRY);
+				Collection<ResourceLocation> possibleTags = tagGroup.getMatchingTags(items.get(0));
+				for (int i = 1; i < items.size() && possibleTags.size() > 1; i++) {
+					possibleTags.removeAll(tagGroup.getMatchingTags(items.get(i)));
 				}
-				if (tagPresent) {
-					Tag<Item> tag = (Tag<Item>) dataInstance.get("tag");
-					return List.copyOf(tag.getValues());
-				} else {
-					return List.of((Item) dataInstance.get("item"));
+				if (possibleTags.size() != 1) {
+					throw new IllegalStateException("Couldn't transform item list to a single tag");
 				}
-			}, (data, items) -> {
-				SerializableData.Instance inst = data.new Instance();
-				if (items.size() == 1) {
-					inst.set("item", items.get(0));
-				} else {
-					TagContainer tagManager = Calio.getTagManager();
-					TagCollection<Item> tagGroup = tagManager.getOrEmpty(Registry.ITEM_REGISTRY);
-					Collection<ResourceLocation> possibleTags = tagGroup.getMatchingTags(items.get(0));
-					for (int i = 1; i < items.size() && possibleTags.size() > 1; i++) {
-						possibleTags.removeAll(tagGroup.getMatchingTags(items.get(i)));
-					}
-					if (possibleTags.size() != 1) {
-						throw new IllegalStateException("Couldn't transform item list to a single tag");
-					}
-					inst.set("tag", tagGroup.getTag(possibleTags.stream().findFirst().get()));
-				}
-				return inst;
-			});
+				return possibleTags.stream().findFirst().map(tagGroup::getTag);
+			})
+	).apply(instance, (item, itemTag) -> itemTag.map(Tag::getValues).or(() -> item.map(ImmutableList::of)).orElseGet(ImmutableList::of))));
 
 	public static final SerializableDataType<List<List<Item>>> INGREDIENT_ENTRIES = SerializableDataType.list(INGREDIENT_ENTRY);
 
@@ -283,25 +268,15 @@ public final class SerializableDataTypes {
 				}
 			});
 
-	public static final SerializableDataType<ItemStack> ITEM_STACK = SerializableDataType.compound(ItemStack.class,
-			new SerializableData()
-					.add("item", SerializableDataTypes.ITEM)
-					.add("amount", SerializableDataTypes.INT, 1)
-					.add("tag", NBT, null),
-			(data) -> {
-				ItemStack stack = new ItemStack((Item) data.get("item"), data.getInt("amount"));
-				if (data.isPresent("tag")) {
-					stack.setTag((CompoundTag) data.get("tag"));
-				}
-				return stack;
-			},
-			((serializableData, itemStack) -> {
-				SerializableData.Instance data = serializableData.new Instance();
-				data.set("item", itemStack.getItem());
-				data.set("amount", itemStack.getCount());
-				data.set("tag", itemStack.hasTag() ? itemStack.getTag() : null);
-				return data;
-			}));
+	public static final SerializableDataType<ItemStack> ITEM_STACK = new SerializableDataType<>(ItemStack.class, RecordCodecBuilder.create(instance -> instance.group(
+			ITEM.fieldOf("item").forGetter(ItemStack::getItem),
+			Codec.INT.optionalFieldOf("amount", 1).forGetter(ItemStack::getCount),
+			NBT.optionalFieldOf("tag").forGetter(x -> Optional.ofNullable(x.getTag()))
+	).apply(instance, (t1, t2, t3) -> {
+		ItemStack itemStack = new ItemStack(t1, t2);
+		t3.ifPresent(itemStack::setTag);
+		return itemStack;
+	})));
 
 	public static final SerializableDataType<List<ItemStack>> ITEM_STACKS = SerializableDataType.list(ITEM_STACK);
 
@@ -348,5 +323,4 @@ public final class SerializableDataTypes {
 			SerializableDataTypes.IDENTIFIER,
 			ResourceKey::location, identifier -> ResourceKey.create(Registry.DIMENSION_REGISTRY, identifier)
 	);
-
 }

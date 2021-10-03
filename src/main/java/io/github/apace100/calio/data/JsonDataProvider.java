@@ -60,6 +60,6 @@ public abstract class JsonDataProvider<T> implements DataProvider {
 	}
 
 	protected Path getPath(ResourceLocation entry) {
-		return this.generator.getOutputFolder().resolve(Paths.get(this.resourceType.getDirectory(), entry.getNamespace(), this.folder, entry.getPath()));
+		return this.generator.getOutputFolder().resolve(Paths.get(this.resourceType.getDirectory(), entry.getNamespace(), this.folder, entry.getPath() + ".json"));
 	}
 }
