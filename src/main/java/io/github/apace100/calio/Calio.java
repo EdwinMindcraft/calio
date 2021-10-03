@@ -15,6 +15,7 @@ import net.minecraft.tags.Tag;
 import net.minecraft.tags.TagContainer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.fml.DistExecutor;
+import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 
 @Mod(CalioAPI.MODID)
@@ -25,10 +26,11 @@ public class Calio {
 	static TagManagerGetter tagManagerGetter;
 
 	public Calio() {
-		tagManagerGetter = DistExecutor.safeRunForDist(() -> ClientTagManagerGetter::new, () -> ServerTagManagerGetter::new);
-		CriteriaTriggers.register(CodeTriggerCriterion.INSTANCE);
-		CalioNetwork.register();
+		CalioAPI.LOGGER.info("Calio {} initializing...", ModLoadingContext.get().getActiveContainer().getModInfo().getVersion());
 		CalioCommon.initialize();
+		CalioNetwork.register();
+		CriteriaTriggers.register(CodeTriggerCriterion.INSTANCE);
+		tagManagerGetter = DistExecutor.safeRunForDist(() -> ClientTagManagerGetter::new, () -> ServerTagManagerGetter::new);
 	}
 
 	public static boolean hasNonItalicName(ItemStack stack) {

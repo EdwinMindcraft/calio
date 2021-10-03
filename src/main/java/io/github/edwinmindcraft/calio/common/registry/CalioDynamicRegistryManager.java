@@ -89,7 +89,8 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	}
 
 	@Override
-	public CompletableFuture<Void> reload(PreparationBarrier barrier, ResourceManager resourceManager, ProfilerFiller preparationsProfiler, ProfilerFiller reloadProfiler, Executor preparationsExecutor, Executor reloadExecutor) {
+	@NotNull
+	public CompletableFuture<Void> reload(PreparationBarrier barrier, @NotNull ResourceManager resourceManager, @NotNull ProfilerFiller preparationsProfiler, @NotNull ProfilerFiller reloadProfiler, @NotNull Executor preparationsExecutor, @NotNull Executor reloadExecutor) {
 		return this.prepare(resourceManager, preparationsExecutor)
 				.thenCompose(barrier::wait)
 				.thenCompose(x -> this.reload(x, reloadExecutor));
@@ -97,14 +98,18 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 
 	private CompletableFuture<Map<ResourceKey<?>, Map<ResourceLocation, List<JsonElement>>>> prepare(ResourceManager resourceManager, Executor executor) {
 		ConcurrentHashMap<ResourceKey<?>, Map<ResourceLocation, List<JsonElement>>> map = new ConcurrentHashMap<>();
-		CompletableFuture<?>[] completableFutures = this.factories.entrySet().stream().map(x -> CompletableFuture.runAsync(() -> map.put(x.getKey(), x.getValue().prepare(resourceManager)), executor)).toArray(CompletableFuture[]::new);
+		CompletableFuture<?>[] completableFutures = this.factories.entrySet().stream()
+				.map(x -> CompletableFuture.runAsync(() -> map.put(x.getKey(), x.getValue().prepare(resourceManager)), executor))
+				.toArray(CompletableFuture[]::new);
 		return CompletableFuture.allOf(completableFutures).thenApplyAsync(x -> map, executor);
 	}
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	private CompletableFuture<Void> reload(Map<ResourceKey<?>, Map<ResourceLocation, List<JsonElement>>> input, Executor executor) {
 		ConcurrentHashMap<ResourceKey<?>, Map<ResourceLocation, ?>> map = new ConcurrentHashMap<>();
-		CompletableFuture<?>[] completableFutures = this.factories.entrySet().stream().map(x -> CompletableFuture.runAsync(() -> map.put(x.getKey(), x.getValue().reload(input.get(x.getKey()))), executor)).toArray(CompletableFuture[]::new);
+		CompletableFuture<?>[] completableFutures = this.factories.entrySet().stream()
+				.map(x -> CompletableFuture.runAsync(() -> map.put(x.getKey(), x.getValue().reload(input.get(x.getKey()))), executor))
+				.toArray(CompletableFuture[]::new);
 		return CompletableFuture.allOf(completableFutures).thenAcceptAsync(x -> {
 			for (ResourceKey<?> resourceKey : this.validatorOrder) {
 				this.validate((ResourceKey) resourceKey, (Validator) this.validators.get(resourceKey), (Map) map.get(resourceKey));

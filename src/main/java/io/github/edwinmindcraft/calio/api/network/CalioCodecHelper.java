@@ -1,10 +1,11 @@
 package io.github.edwinmindcraft.calio.api.network;
 
 import com.google.common.collect.ImmutableSet;
-import com.google.gson.JsonElement;
+import com.google.gson.*;
 import com.mojang.datafixers.util.Either;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.apace100.calio.FilterableWeightedList;
 import io.github.apace100.calio.data.SerializableDataTypes;
@@ -12,8 +13,8 @@ import net.minecraft.core.Registry;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.entity.player.Player;
 
+import java.lang.reflect.Type;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -24,6 +25,7 @@ public class CalioCodecHelper {
 	 *
 	 * @param registry The root key of the registry.
 	 * @param <T>      The type of the registry.
+	 *
 	 * @return A codec for the given {@link ResourceKey}
 	 */
 	public static <T> Codec<ResourceKey<T>> resourceKey(ResourceKey<? extends Registry<T>> registry) {
@@ -35,7 +37,9 @@ public class CalioCodecHelper {
 	 *
 	 * @param source The codec to make a weighted list of.
 	 * @param <T>    The type of the codec.
+	 *
 	 * @return A new weighted list codec.
+	 *
 	 * @see net.minecraft.world.entity.ai.behavior.ShufflingList#codec(Codec) for minecraft's weighted list.
 	 */
 	public static <T> Codec<FilterableWeightedList<T>> weightedListOf(Codec<T> source) {
@@ -55,6 +59,7 @@ public class CalioCodecHelper {
 	 *
 	 * @param source The codec to make a list of.
 	 * @param <T>    The type of the codec.
+	 *
 	 * @return A new list codec.
 	 */
 	public static <T> Codec<List<T>> listOf(Codec<T> source) {
@@ -67,6 +72,7 @@ public class CalioCodecHelper {
 	 *
 	 * @param source The codec to make a list of.
 	 * @param <T>    The type of the codec.
+	 *
 	 * @return A new list codec.
 	 */
 	public static <T> Codec<List<T>> optionalListOf(Codec<Optional<T>> source) {
@@ -80,6 +86,7 @@ public class CalioCodecHelper {
 	 *
 	 * @param source The codec to make a set of.
 	 * @param <T>    The type of the codec
+	 *
 	 * @return A new set codec.
 	 */
 	public static <T> Codec<Set<T>> setOf(Codec<T> source) {
@@ -107,4 +114,27 @@ public class CalioCodecHelper {
 			return buf.readComponent();
 		}
 	};
+
+	public static <T> CodecJsonAdapter<T> jsonAdapter(Codec<T> input) {
+		return new CodecJsonAdapter<>(input);
+	}
+
+	public static class CodecJsonAdapter<T> implements JsonSerializer<T>, JsonDeserializer<T> {
+
+		private final Codec<T> codec;
+
+		private CodecJsonAdapter(Codec<T> codec) {this.codec = codec;}
+
+		@Override
+		public T deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+			return this.codec.decode(JsonOps.INSTANCE, json).getOrThrow(false, s -> {
+				throw new JsonParseException("Found error: " + s);
+			}).getFirst();
+		}
+
+		@Override
+		public JsonElement serialize(T src, Type typeOfSrc, JsonSerializationContext context) {
+			return this.codec.encodeStart(JsonOps.INSTANCE, src).getOrThrow(false, s -> {});
+		}
+	}
 }
