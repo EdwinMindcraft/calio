@@ -337,11 +337,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 
 		public Map<ResourceLocation, T> reload(Map<ResourceLocation, List<JsonElement>> input) {
 			ImmutableMap.Builder<ResourceLocation, T> builder = ImmutableMap.builder();
-			input.forEach((location, jsonElements) -> {
-				T result = this.factory().accept(location, jsonElements);
-				if (result != null)
-					builder.put(location, result);
-			});
+			input.forEach((location, jsonElements) -> this.factory().create(location, jsonElements).forEach(builder::put));
 			return builder.build();
 		}
 	}
