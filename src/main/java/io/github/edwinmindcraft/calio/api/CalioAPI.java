@@ -2,24 +2,23 @@ package io.github.edwinmindcraft.calio.api;
 
 import io.github.edwinmindcraft.calio.api.ability.IAbilityHolder;
 import io.github.edwinmindcraft.calio.api.registry.ICalioDynamicRegistryManager;
+import io.github.edwinmindcraft.calio.client.util.ClientHelper;
 import io.github.edwinmindcraft.calio.common.registry.CalioDynamicRegistryManager;
-import io.github.edwinmindcraft.calio.common.util.CoreHelper;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.CommonLevelAccessor;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.CapabilityInject;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.fml.DistExecutor;
-import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.util.thread.EffectiveSide;
 import net.minecraftforge.fmllegacy.server.ServerLifecycleHooks;
-import net.minecraftforge.forgespi.Environment;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class CalioAPI {
 	public static final Logger LOGGER = LogManager.getLogger("Calio");
@@ -37,16 +36,27 @@ public class CalioAPI {
 
 	public static ICalioDynamicRegistryManager getDynamicRegistries() {
 		RegistryAccess registryAccess = EffectiveSide.get().isClient() ? null : ServerLifecycleHooks.getCurrentServer() != null ? ServerLifecycleHooks.getCurrentServer().registryAccess() : RegistryAccess.builtin();
-		return getDynamicRegistries(registryAccess);
+		return getDynamicRegistries(getSidedRegistryAccess());
 	}
 
-	public static ICalioDynamicRegistryManager getDynamicRegistries(MinecraftServer server) {
-		RegistryAccess registryAccess = EffectiveSide.get().isClient() ? null : server != null ? server.registryAccess() : RegistryAccess.builtin();
-		return CalioDynamicRegistryManager.getInstance(registryAccess);
+	private static RegistryAccess getSidedRegistryAccess() {
+		if (EffectiveSide.get().isClient())
+			return null;
+		if (ServerLifecycleHooks.getCurrentServer() != null)
+			return ServerLifecycleHooks.getCurrentServer().registryAccess();
+		return RegistryAccess.builtin();
 	}
 
-	public static ICalioDynamicRegistryManager getDynamicRegistries(RegistryAccess server) {
-		return CalioDynamicRegistryManager.getInstance(server);
+	public static ICalioDynamicRegistryManager getDynamicRegistries(@Nullable MinecraftServer server) {
+		return CalioDynamicRegistryManager.getInstance(server == null ? getSidedRegistryAccess() : server.registryAccess());
+	}
+
+	public static ICalioDynamicRegistryManager getDynamicRegistries(@Nullable CommonLevelAccessor level) {
+		return CalioDynamicRegistryManager.getInstance(level == null ? getSidedRegistryAccess() : level.registryAccess());
+	}
+
+	public static ICalioDynamicRegistryManager getDynamicRegistries(@Nullable RegistryAccess access) {
+		return CalioDynamicRegistryManager.getInstance(access);
 	}
 
 	public static LazyOptional<IAbilityHolder> getAbilityHolder(Entity entity) {

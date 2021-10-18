@@ -16,6 +16,8 @@ import io.github.edwinmindcraft.calio.api.event.DynamicRegistrationEvent;
 import io.github.edwinmindcraft.calio.api.registry.DynamicEntryFactory;
 import io.github.edwinmindcraft.calio.api.registry.DynamicEntryValidator;
 import io.github.edwinmindcraft.calio.api.registry.ICalioDynamicRegistryManager;
+import io.github.edwinmindcraft.calio.client.util.ClientHelper;
+import io.github.edwinmindcraft.calio.common.CalioConfig;
 import net.minecraft.core.MappedRegistry;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
@@ -23,13 +25,13 @@ import net.minecraft.core.WritableRegistry;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.registries.IForgeRegistryEntry;
 import org.apache.commons.lang3.Validate;
 import org.jetbrains.annotations.NotNull;
@@ -122,6 +124,8 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	}
 
 	public void dump() {
+		if (!CalioConfig.COMMON.logging.get())
+			return;
 		CalioAPI.LOGGER.info("Calio dynamic registry dump:");
 		this.registries.values().forEach(reg -> {
 			CalioAPI.LOGGER.info("{}: {} entries", reg.key().location(), reg.keySet().size());
@@ -143,13 +147,17 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		});
 	}
 
+	public static boolean isServerContext(RegistryAccess access) {
+		return DistExecutor.unsafeRunForDist(() -> () -> ClientHelper.isServerContext(access), () -> () -> true);
+	}
+
 	public static CalioDynamicRegistryManager getInstance(RegistryAccess server) {
-		if (server == null) {
-			if (clientInstance == null)
-				initializeClient();
-			return clientInstance;
-		}
-		return addInstance(server);
+		if (isServerContext(server))
+			return addInstance(server);
+
+		if (clientInstance == null)
+			initializeClient();
+		return clientInstance;
 	}
 
 	public static CalioDynamicRegistryManager addInstance(RegistryAccess server) {
@@ -190,7 +198,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 			T decode = buffer.readWithCodec(codec);
 			if (decode instanceof IForgeRegistryEntry<?> fre)
 				fre.setRegistryName(objectKey.location());
-			registry.register(objectKey, decode, Lifecycle.stable());
+			registry.registerOrOverride(OptionalInt.empty(), objectKey, decode, Lifecycle.stable());
 		}
 	}
 
