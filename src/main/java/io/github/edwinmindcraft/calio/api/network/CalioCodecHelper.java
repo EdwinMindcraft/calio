@@ -83,11 +83,12 @@ public class CalioCodecHelper {
 	}
 
 	public static <T> MapCodec<List<T>> listOf(Codec<T> source, String singular, String plural) {
-		return Codec.mapEither(source.optionalFieldOf(singular), listOf(source).optionalFieldOf(plural, ImmutableList.of())).xmap(x -> x.map(opt -> opt.stream().toList(), Function.identity()), ls -> {
+		Codec<List<T>> listCodec = listOf(source);
+		return Codec.mapEither(listCodec.fieldOf(singular), listCodec.optionalFieldOf(plural, ImmutableList.of())).xmap(x -> x.map(Function.identity(), Function.identity()), ls -> {
 			if (ls.isEmpty())
-				return Either.left(Optional.empty());
+				return Either.left(ImmutableList.of());
 			if (ls.size() == 1)
-				return Either.left(Optional.of(ls.get(0)));
+				return Either.left(ls);
 			return Either.right(ls);
 		});
 	}
