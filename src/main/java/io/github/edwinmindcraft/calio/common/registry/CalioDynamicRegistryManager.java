@@ -140,7 +140,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 			if (validator != null)
 				t = validator.validate(resourceKey, t, this);
 			if (t != null) {
-				if (t instanceof IForgeRegistryEntry<?> re) //This ensures that get registry name is always valid.
+				if (t instanceof IForgeRegistryEntry<?> re && re.getRegistryName() == null) //This ensures that get registry name is always valid.
 					re.setRegistryName(location);
 				registry.register(resourceKey, t, Lifecycle.experimental());
 			}
