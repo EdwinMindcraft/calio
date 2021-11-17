@@ -16,7 +16,7 @@ A simple library mod, mainly adds a serializable data system.
 [[dependencies.calio]]
     modId="forge"
     mandatory=true
-    versionRange="[37.0.34,)"
+    versionRange="[37.0.74,)"
     ordering="NONE"
     side="BOTH"
 
