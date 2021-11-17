@@ -24,9 +24,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.tags.Tag;
-import net.minecraft.tags.TagCollection;
-import net.minecraft.tags.TagContainer;
+import net.minecraft.tags.*;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffect;
@@ -184,19 +182,19 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<Tag<Item>> ITEM_TAG = SerializableDataType.wrap(ClassUtil.castClass(Tag.class), IDENTIFIER,
 			item -> Calio.getTagManager().getIdOrThrow(Registry.ITEM_REGISTRY, item, () -> new JsonSyntaxException("Unknown fluid tag")),
-			id -> new IdentifiedTag<>(Registry.ITEM_REGISTRY, id));
+			ItemTags::createOptional);
 
 	public static final SerializableDataType<Tag<Fluid>> FLUID_TAG = SerializableDataType.wrap(ClassUtil.castClass(Tag.class), IDENTIFIER,
 			fluid -> Calio.getTagManager().getIdOrThrow(Registry.FLUID_REGISTRY, fluid, () -> new JsonSyntaxException("Unknown fluid tag")),
-			id -> new IdentifiedTag<>(Registry.FLUID_REGISTRY, id));
+			FluidTags::createOptional);
 
 	public static final SerializableDataType<Tag<Block>> BLOCK_TAG = SerializableDataType.wrap(ClassUtil.castClass(Tag.class), IDENTIFIER,
 			block -> Calio.getTagManager().getIdOrThrow(Registry.BLOCK_REGISTRY, block, () -> new JsonSyntaxException("Unknown block tag")),
-			id -> new IdentifiedTag<>(Registry.BLOCK_REGISTRY, id));
+			BlockTags::createOptional);
 
 	public static final SerializableDataType<Tag<EntityType<?>>> ENTITY_TAG = SerializableDataType.wrap(ClassUtil.castClass(Tag.class), SerializableDataTypes.IDENTIFIER,
 			tag -> Calio.getTagManager().getIdOrThrow(Registry.ENTITY_TYPE_REGISTRY, tag, RuntimeException::new),
-			id -> new IdentifiedTag<>(Registry.ENTITY_TYPE_REGISTRY, id));
+			EntityTypeTags::createOptional);
 
 	public static final SerializableDataType<List<Item>> INGREDIENT_ENTRY = new SerializableDataType<>(ClassUtil.castClass(List.class), RecordCodecBuilder.create(instance -> instance.group(
 			ITEM.optionalFieldOf("item").forGetter(x -> x.size() == 1 ? Optional.of(x.get(0)) : Optional.empty()),
