@@ -15,7 +15,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ICapabilitySerializable;
-import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.common.util.LazyOptional;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -111,7 +110,7 @@ public class AbilityHolder implements ICapabilitySerializable<Tag>, IAbilityHold
 		for (String key : tag.getAllKeys()) {
 			PlayerAbility value = PlayerAbilities.REGISTRY.get().getValue(ResourceLocation.tryParse(key));
 			if (value != null) {
-				ListTag list = tag.getList(key, Constants.NBT.TAG_STRING);
+				ListTag list = tag.getList(key, Tag.TAG_STRING);
 				for (Tag t : list) {
 					ResourceLocation resourceLocation = ResourceLocation.tryParse(t.getAsString());
 					if (resourceLocation != null)
