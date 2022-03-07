@@ -19,6 +19,7 @@ import net.minecraft.resources.ResourceKey;
 import java.lang.reflect.Type;
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class CalioCodecHelper {
@@ -84,7 +85,7 @@ public class CalioCodecHelper {
 
 	public static <T> MapCodec<List<T>> listOf(Codec<T> source, String singular, String plural) {
 		Codec<List<T>> listCodec = listOf(source);
-		return Codec.mapEither(listCodec.fieldOf(singular), listCodec.optionalFieldOf(plural, ImmutableList.of())).xmap(x -> x.map(Function.identity(), Function.identity()), ls -> {
+		return Codec.mapEither(listCodec.fieldOf(singular), CalioCodecHelper.optionalField(listCodec, plural, ImmutableList.of())).xmap(x -> x.map(Function.identity(), Function.identity()), ls -> {
 			if (ls.isEmpty())
 				return Either.left(ImmutableList.of());
 			if (ls.size() == 1)
@@ -104,6 +105,18 @@ public class CalioCodecHelper {
 	 */
 	public static <T> Codec<Set<T>> setOf(Codec<T> source) {
 		return Codec.either(source, source.listOf()).xmap(x -> x.map(ImmutableSet::of, HashSet::new), x -> Either.right(new ArrayList<>(x)));
+	}
+
+	public static <A> PropagatingOptionalFieldCodec<A> optionalField(Codec<A> codec, String name) {
+		return new PropagatingOptionalFieldCodec<>(name, codec);
+	}
+
+	public static <A> PropagatingDefaultedOptionalFieldCodec<A> optionalField(Codec<A> codec, String name, A defaultValue) {
+		return new PropagatingDefaultedOptionalFieldCodec<>(name, codec, () -> defaultValue);
+	}
+
+	public static <A> PropagatingDefaultedOptionalFieldCodec<A> optionalField(Codec<A> codec, String name, Supplier<A> defaultValue) {
+		return new PropagatingDefaultedOptionalFieldCodec<>(name, codec, defaultValue);
 	}
 
 	public static final Codec<Component> COMPONENT_CODEC = new IContextAwareCodec<>() {

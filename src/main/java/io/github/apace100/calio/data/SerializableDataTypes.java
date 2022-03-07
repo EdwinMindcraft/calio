@@ -14,6 +14,7 @@ import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.SerializationHelper;
 import io.github.apace100.calio.util.IdentifiedTag;
+import io.github.edwinmindcraft.calio.api.network.CalioCodecHelper;
 import net.minecraft.ResourceLocationException;
 import net.minecraft.core.Registry;
 import net.minecraft.core.particles.ParticleType;
@@ -197,8 +198,8 @@ public final class SerializableDataTypes {
 			EntityTypeTags::createOptional);
 
 	public static final SerializableDataType<List<Item>> INGREDIENT_ENTRY = new SerializableDataType<>(ClassUtil.castClass(List.class), RecordCodecBuilder.create(instance -> instance.group(
-			ITEM.optionalFieldOf("item").forGetter(x -> x.size() == 1 ? Optional.of(x.get(0)) : Optional.empty()),
-			ITEM_TAG.optionalFieldOf("tag").forGetter(items -> {
+			CalioCodecHelper.optionalField(ITEM, "item").forGetter(x -> x.size() == 1 ? Optional.of(x.get(0)) : Optional.empty()),
+			CalioCodecHelper.optionalField(ITEM_TAG, "tag").forGetter(items -> {
 				if (items.size() == 1)
 					return Optional.empty();
 				TagContainer tagManager = Calio.getTagManager();
@@ -268,8 +269,8 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<ItemStack> ITEM_STACK = new SerializableDataType<>(ItemStack.class, RecordCodecBuilder.create(instance -> instance.group(
 			ITEM.fieldOf("item").forGetter(ItemStack::getItem),
-			Codec.INT.optionalFieldOf("amount", 1).forGetter(ItemStack::getCount),
-			NBT.optionalFieldOf("tag").forGetter(x -> Optional.ofNullable(x.getTag()))
+			CalioCodecHelper.optionalField(Codec.INT, "amount", 1).forGetter(ItemStack::getCount),
+			CalioCodecHelper.optionalField(NBT, "tag").forGetter(x -> Optional.ofNullable(x.getTag()))
 	).apply(instance, (t1, t2, t3) -> {
 		ItemStack itemStack = new ItemStack(t1, t2);
 		t3.ifPresent(itemStack::setTag);
