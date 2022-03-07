@@ -23,6 +23,6 @@ A simple library mod, mainly adds a serializable data system.
 [[dependencies.calio]]
     modId="minecraft"
     mandatory=true
-    versionRange="[1.17.1]"
+    versionRange="[${mc_version}]"
     ordering="NONE"
     side="BOTH"
