@@ -4,9 +4,9 @@ import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.common.network.packet.C2SAcknowledgePacket;
 import io.github.edwinmindcraft.calio.common.network.packet.C2SShareItemPacket;
 import io.github.edwinmindcraft.calio.common.network.packet.S2CDynamicRegistriesPacket;
-import net.minecraftforge.fmllegacy.network.NetworkDirection;
-import net.minecraftforge.fmllegacy.network.NetworkRegistry;
-import net.minecraftforge.fmllegacy.network.simple.SimpleChannel;
+import net.minecraftforge.network.NetworkDirection;
+import net.minecraftforge.network.NetworkRegistry;
+import net.minecraftforge.network.simple.SimpleChannel;
 
 public class CalioNetwork {
 	public static final String NETWORK_VERSION = "1.0";

@@ -18,11 +18,11 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.MapItem;
 import net.minecraftforge.event.*;
 import net.minecraftforge.event.entity.player.ItemTooltipEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fmllegacy.network.PacketDistributor;
-import net.minecraftforge.fmlserverevents.FMLServerStoppedEvent;
+import net.minecraftforge.network.PacketDistributor;
 
 import java.util.List;
 
@@ -41,7 +41,7 @@ public class CalioEventHandler {
 	}
 
 	@SubscribeEvent
-	public static void onServerStopped(FMLServerStoppedEvent event) {
+	public static void onServerStopped(ServerStoppedEvent event) {
 		CalioAPI.LOGGER.info("Removing Dynamic Registries for: " + event.getServer());
 		CalioDynamicRegistryManager.removeInstance(event.getServer().registryAccess());
 	}

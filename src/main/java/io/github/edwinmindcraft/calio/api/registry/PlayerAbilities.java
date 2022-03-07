@@ -1,15 +1,11 @@
 package io.github.edwinmindcraft.calio.api.registry;
 
-import io.github.apace100.calio.Calio;
-import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.api.ability.PlayerAbility;
-import io.github.edwinmindcraft.calio.common.CalioCommon;
 import io.github.edwinmindcraft.calio.common.ability.AllowFlightAbility;
 import io.github.edwinmindcraft.calio.common.ability.FlightAbility;
 import io.github.edwinmindcraft.calio.common.registry.CalioRegisters;
-import net.minecraftforge.fmllegacy.RegistryObject;
 import net.minecraftforge.registries.IForgeRegistry;
-import net.minecraftforge.registries.RegistryBuilder;
+import net.minecraftforge.registries.RegistryObject;
 
 import java.util.function.Supplier;
 
