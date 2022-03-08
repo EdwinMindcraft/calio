@@ -4,9 +4,9 @@ import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSyntaxException;
-import com.google.gson.*;
 import com.google.gson.internal.LazilyParsedNumber;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -15,12 +15,13 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.SerializationHelper;
-import io.github.apace100.calio.data.SerializableData.Instance;
-import io.github.apace100.calio.mixin.DamageSourceAccessor;
-import io.github.apace100.calio.util.IdentifiedTag;
+import io.github.apace100.calio.util.StatusEffectChance;
 import io.github.edwinmindcraft.calio.api.network.CalioCodecHelper;
 import net.minecraft.ResourceLocationException;
+import net.minecraft.commands.arguments.blocks.BlockStateParser;
+import net.minecraft.core.Direction;
 import net.minecraft.core.Registry;
+import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleType;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.TagParser;
@@ -29,8 +30,12 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.tags.*;
+import net.minecraft.tags.Tag;
+import net.minecraft.tags.TagCollection;
+import net.minecraft.tags.TagContainer;
 import net.minecraft.util.GsonHelper;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -39,155 +44,97 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.MobType;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.FogType;
+import net.minecraft.world.level.material.Material;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.registries.ForgeRegistries;
-import io.github.apace100.calio.util.StatusEffectChance;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Material;
-import net.minecraft.client.render.CameraSubmersionType;
-import net.minecraft.client.util.math.Vector3d;
-import net.minecraft.command.argument.BlockArgumentParser;
-import net.minecraft.enchantment.Enchantment;
-import net.minecraft.entity.EntityGroup;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.attribute.EntityAttribute;
-import net.minecraft.entity.attribute.EntityAttributeModifier;
-import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.entity.effect.StatusEffect;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.fluid.Fluid;
-import net.minecraft.item.FoodComponent;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.StringNbtReader;
-import net.minecraft.network.PacketByteBuf;
-import net.minecraft.particle.ParticleEffect;
-import net.minecraft.particle.ParticleType;
-import net.minecraft.recipe.Ingredient;
-import net.minecraft.recipe.Recipe;
-import net.minecraft.recipe.RecipeSerializer;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.tag.Tag;
-import net.minecraft.tag.TagGroup;
-import net.minecraft.tag.TagManager;
-import net.minecraft.text.Text;
-import net.minecraft.util.*;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.registry.Registry;
-import net.minecraft.util.registry.RegistryKey;
-import net.minecraft.world.RaycastContext;
-import net.minecraft.world.World;
-import net.minecraft.world.event.GameEvent;
-import net.minecraft.world.explosion.Explosion;
 
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Optional;
 import java.util.*;
 
 public final class SerializableDataTypes {
 
 	public static final SerializableDataType<Integer> INT = new SerializableDataType<>(Integer.class, Codec.INT);
 
-    public static final SerializableDataType<List<Integer>> INTS = SerializableDataType.list(INT);
+	public static final SerializableDataType<List<Integer>> INTS = SerializableDataType.list(INT);
 
 	public static final SerializableDataType<Boolean> BOOLEAN = new SerializableDataType<>(Boolean.class, Codec.BOOL);
 
 	public static final SerializableDataType<Float> FLOAT = new SerializableDataType<>(Float.class, Codec.FLOAT);
 
-    public static final SerializableDataType<List<Float>> FLOATS = SerializableDataType.list(FLOAT);
+	public static final SerializableDataType<List<Float>> FLOATS = SerializableDataType.list(FLOAT);
 
 	public static final SerializableDataType<Double> DOUBLE = new SerializableDataType<>(Double.class, Codec.DOUBLE);
 
 	public static final SerializableDataType<String> STRING = new SerializableDataType<>(String.class, Codec.STRING);
-    public static final SerializableDataType<List<String>> STRINGS = SerializableDataType.list(STRING);
+	public static final SerializableDataType<List<String>> STRINGS = SerializableDataType.list(STRING);
 
-    public static final SerializableDataType<Number> NUMBER = new SerializableDataType<>(
-            Number.class,
-            (buf, number) -> {
-                if(number instanceof Double) {
-                    buf.writeByte(0);
-                    buf.writeDouble(number.doubleValue());
-                } else if(number instanceof Float) {
-                    buf.writeByte(1);
-                    buf.writeFloat(number.floatValue());
-                } else if(number instanceof Integer) {
-                    buf.writeByte(2);
-                    buf.writeInt(number.intValue());
-                } else if(number instanceof Long) {
-                    buf.writeByte(3);
-                    buf.writeLong(number.longValue());
-                } else {
-                    buf.writeByte(4);
-                    buf.writeString(number.toString());
-                }
-            },
-            buf -> {
-                byte type = buf.readByte();
-                switch(type) {
-                    case 0:
-                        return buf.readDouble();
-                    case 1:
-                        return buf.readFloat();
-                    case 2:
-                        return buf.readInt();
-                    case 3:
-                        return buf.readLong();
-                    case 4:
-                        return new LazilyParsedNumber(buf.readString());
-                }
-                throw new RuntimeException("Could not receive number, unexpected type id \"" + type + "\" (allowed range: [0-4])");
-            },
-            je -> {
-                if(je.isJsonPrimitive()) {
-                    JsonPrimitive primitive = je.getAsJsonPrimitive();
-                    if(primitive.isNumber()) {
-                        return primitive.getAsNumber();
-                    } else if(primitive.isBoolean()) {
-                        return primitive.getAsBoolean() ? 1 : 0;
-                    }
-                }
-                throw new JsonParseException("Expected a primitive");
-            });
+	public static final SerializableDataType<Number> NUMBER = new SerializableDataType<>(
+			Number.class,
+			(buf, number) -> {
+				if (number instanceof Double) {
+					buf.writeByte(0);
+					buf.writeDouble(number.doubleValue());
+				} else if (number instanceof Float) {
+					buf.writeByte(1);
+					buf.writeFloat(number.floatValue());
+				} else if (number instanceof Integer) {
+					buf.writeByte(2);
+					buf.writeInt(number.intValue());
+				} else if (number instanceof Long) {
+					buf.writeByte(3);
+					buf.writeLong(number.longValue());
+				} else {
+					buf.writeByte(4);
+					buf.writeUtf(number.toString());
+				}
+			},
+			buf -> {
+				byte type = buf.readByte();
+				switch (type) {
+					case 0:
+						return buf.readDouble();
+					case 1:
+						return buf.readFloat();
+					case 2:
+						return buf.readInt();
+					case 3:
+						return buf.readLong();
+					case 4:
+						return new LazilyParsedNumber(buf.readUtf());
+				}
+				throw new RuntimeException("Could not receive number, unexpected type id \"" + type + "\" (allowed range: [0-4])");
+			},
+			je -> {
+				if (je.isJsonPrimitive()) {
+					JsonPrimitive primitive = je.getAsJsonPrimitive();
+					if (primitive.isNumber()) {
+						return primitive.getAsNumber();
+					} else if (primitive.isBoolean()) {
+						return primitive.getAsBoolean() ? 1 : 0;
+					}
+				}
+				throw new JsonParseException("Expected a primitive");
+			},
+			JsonPrimitive::new);
 
-    public static final SerializableDataType<List<Number>> NUMBERS = SerializableDataType.list(NUMBER);
+	public static final SerializableDataType<List<Number>> NUMBERS = SerializableDataType.list(NUMBER);
 
-    public static final SerializableDataType<Vec3d> VECTOR = new SerializableDataType<>(Vec3d.class,
-            (packetByteBuf, vector3d) -> {
-                packetByteBuf.writeDouble(vector3d.x);
-                packetByteBuf.writeDouble(vector3d.y);
-                packetByteBuf.writeDouble(vector3d.z);
-            },
-            (packetByteBuf -> new Vec3d(
-                    packetByteBuf.readDouble(),
-                    packetByteBuf.readDouble(),
-                    packetByteBuf.readDouble())),
-            (jsonElement -> {
-                if(jsonElement.isJsonObject()) {
-                    JsonObject jo = jsonElement.getAsJsonObject();
-                    return new Vec3d(
-                            JsonHelper.getDouble(jo, "x", 0),
-                            JsonHelper.getDouble(jo, "y", 0),
-                            JsonHelper.getDouble(jo, "z", 0)
-                    );
-                } else {
-                    throw new JsonParseException("Expected an object with x, y, and z fields.");
-                }
-            }));
+	public static final SerializableDataType<Vec3> VECTOR = new SerializableDataType<>(Vec3.class, CalioCodecHelper.VEC3D.codec());
 
 	public static final SerializableDataType<ResourceLocation> IDENTIFIER = new SerializableDataType<>(
 			ResourceLocation.class,
@@ -306,13 +253,13 @@ public final class SerializableDataTypes {
 	public static final SerializableDataType<List<MobEffectInstance>> STATUS_EFFECT_INSTANCES =
 			SerializableDataType.list(STATUS_EFFECT_INSTANCE);
 
-    public static final SerializableDataType<Tag<Item>> ITEM_TAG = SerializableDataType.tag(Registry.ITEM_KEY);
+	public static final SerializableDataType<Tag<Item>> ITEM_TAG = SerializableDataType.tag(Registry.ITEM_REGISTRY);
 
-    public static final SerializableDataType<Tag<Fluid>> FLUID_TAG = SerializableDataType.tag(Registry.FLUID_KEY);
+	public static final SerializableDataType<Tag<Fluid>> FLUID_TAG = SerializableDataType.tag(Registry.FLUID_REGISTRY);
 
-    public static final SerializableDataType<Tag<Block>> BLOCK_TAG = SerializableDataType.tag(Registry.BLOCK_KEY);
+	public static final SerializableDataType<Tag<Block>> BLOCK_TAG = SerializableDataType.tag(Registry.BLOCK_REGISTRY);
 
-    public static final SerializableDataType<Tag<EntityType<?>>> ENTITY_TAG = SerializableDataType.tag(Registry.ENTITY_TYPE_KEY);
+	public static final SerializableDataType<Tag<EntityType<?>>> ENTITY_TAG = SerializableDataType.tag(Registry.ENTITY_TYPE_REGISTRY);
 
 	public static final SerializableDataType<List<Item>> INGREDIENT_ENTRY = new SerializableDataType<>(ClassUtil.castClass(List.class), RecordCodecBuilder.create(instance -> instance.group(
 			CalioCodecHelper.optionalField(ITEM, "item").forGetter(x -> x.size() == 1 ? Optional.of(x.get(0)) : Optional.empty()),
@@ -357,15 +304,15 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<Block> BLOCK = SerializableDataType.registry(Block.class, Registry.BLOCK);
 
-    public static final SerializableDataType<BlockState> BLOCK_STATE = SerializableDataType.wrap(BlockState.class, STRING,
-        BlockArgumentParser::stringifyBlockState,
-        string -> {
-            try {
-                return (new BlockArgumentParser(new StringReader(string), false)).parse(false).getBlockState();
-            } catch (CommandSyntaxException e) {
-                throw new JsonParseException(e);
-            }
-        });
+	public static final SerializableDataType<BlockState> BLOCK_STATE = SerializableDataType.wrap(BlockState.class, STRING,
+			BlockStateParser::serialize,
+			string -> {
+				try {
+					return (new BlockStateParser(new StringReader(string), false)).parse(false).getState();
+				} catch (CommandSyntaxException e) {
+					throw new JsonParseException(e);
+				}
+			});
 
 	public static final SerializableDataType<MobType> ENTITY_GROUP =
 			SerializableDataType.mapped(MobType.class, HashBiMap.create(ImmutableMap.of(
@@ -384,50 +331,51 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<ParticleType<?>> PARTICLE_TYPE = SerializableDataType.registry(ClassUtil.castClass(ParticleType.class), Registry.PARTICLE_TYPE);
 
-    public static final SerializableDataType<ParticleEffect> PARTICLE_EFFECT = SerializableDataType.compound(ParticleEffect.class,
-        new SerializableData()
-            .add("type", PARTICLE_TYPE)
-            .add("params", STRING, ""),
-        dataInstance -> {
-            ParticleType<? extends ParticleEffect> particleType = dataInstance.get("type");
-            ParticleEffect.Factory factory = particleType.getParametersFactory();
-            ParticleEffect effect = null;
-            try {
-                effect = factory.read(particleType, new StringReader(" " + dataInstance.getString("params")));
-            } catch (CommandSyntaxException e) {
-                throw new RuntimeException(e);
-            }
-            return effect;
-        },
-        ((serializableData, particleEffect) -> {
-            SerializableData.Instance data = serializableData.new Instance();
-            data.set("type", particleEffect.getType());
-            String params = particleEffect.asString();
-            int spaceIndex = params.indexOf(' ');
-            if(spaceIndex > -1) {
-                params = params.substring(spaceIndex + 1);
-            } else {
-                params = "";
-            }
-            data.set("params", params);
-            return data;
-        }));
+	public static final SerializableDataType<ParticleOptions> PARTICLE_EFFECT = SerializableDataType.compound(ParticleOptions.class,
+			new SerializableData()
+					.add("type", PARTICLE_TYPE)
+					.add("params", STRING, ""),
+			dataInstance -> {
+				ParticleType<? extends ParticleOptions> particleType = dataInstance.get("type");
+				ParticleOptions.Deserializer factory = particleType.getDeserializer();
+				ParticleOptions effect = null;
+				try {
+					effect = factory.fromCommand(particleType, new StringReader(" " + dataInstance.getString("params")));
+				} catch (CommandSyntaxException e) {
+					throw new RuntimeException(e);
+				}
+				return effect;
+			},
+			((serializableData, particleEffect) -> {
+				SerializableData.Instance data = serializableData.new Instance();
+				data.set("type", particleEffect.getType());
+				String params = particleEffect.writeToString();
+				int spaceIndex = params.indexOf(' ');
+				if (spaceIndex > -1) {
+					params = params.substring(spaceIndex + 1);
+				} else {
+					params = "";
+				}
+				data.set("params", params);
+				return data;
+			}));
 
-    public static final SerializableDataType<ParticleEffect> PARTICLE_EFFECT_OR_TYPE = new SerializableDataType<>(ParticleEffect.class,
-        PARTICLE_EFFECT::send,
-        PARTICLE_EFFECT::receive,
-        jsonElement -> {
-            if(jsonElement.isJsonPrimitive() && jsonElement.getAsJsonPrimitive().isString()) {
-                ParticleType<?> type = PARTICLE_TYPE.read(jsonElement);
-                if(type instanceof ParticleEffect) {
-                    return (ParticleEffect) type;
-                }
-                throw new RuntimeException("Expected either a string with a parameter-less particle effect, or an object.");
-            } else if(jsonElement.isJsonObject()) {
-                return PARTICLE_EFFECT.read(jsonElement);
-            }
-            throw new RuntimeException("Expected either a string with a parameter-less particle effect, or an object.");
-        });
+	public static final SerializableDataType<ParticleOptions> PARTICLE_EFFECT_OR_TYPE = new SerializableDataType<>(ParticleOptions.class,
+			PARTICLE_EFFECT::send,
+			PARTICLE_EFFECT::receive,
+			jsonElement -> {
+				if (jsonElement.isJsonPrimitive() && jsonElement.getAsJsonPrimitive().isString()) {
+					ParticleType<?> type = PARTICLE_TYPE.read(jsonElement);
+					if (type instanceof ParticleOptions) {
+						return (ParticleOptions) type;
+					}
+					throw new RuntimeException("Expected either a string with a parameter-less particle effect, or an object.");
+				} else if (jsonElement.isJsonObject()) {
+					return PARTICLE_EFFECT.read(jsonElement);
+				}
+				throw new RuntimeException("Expected either a string with a parameter-less particle effect, or an object.");
+			},
+			PARTICLE_EFFECT::write);
 
 	public static final SerializableDataType<CompoundTag> NBT = SerializableDataType.wrap(CompoundTag.class, SerializableDataTypes.STRING,
 			CompoundTag::toString,
@@ -451,220 +399,20 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<List<ItemStack>> ITEM_STACKS = SerializableDataType.list(ITEM_STACK);
 
-    public static final SerializableDataType<Text> TEXT = new SerializableDataType<>(Text.class,
-        (buffer, text) -> buffer.writeString(Text.Serializer.toJson(text)),
-        (buffer) -> Text.Serializer.fromJson(buffer.readString(32767)),
-        Text.Serializer::fromJson);
-
-    public static final SerializableDataType<List<Text>> TEXTS = SerializableDataType.list(TEXT);
-
-    public static SerializableDataType<RegistryKey<World>> DIMENSION = SerializableDataType.wrap(
-        ClassUtil.castClass(RegistryKey.class),
-        SerializableDataTypes.IDENTIFIER,
-        RegistryKey::getValue, identifier -> RegistryKey.of(Registry.WORLD_KEY, identifier)
-    );
-
-    public static final SerializableDataType<Recipe> RECIPE = new SerializableDataType<>(Recipe.class,
-        (buffer, recipe) -> {
-            buffer.writeIdentifier(Registry.RECIPE_SERIALIZER.getId(recipe.getSerializer()));
-            buffer.writeIdentifier(recipe.getId());
-            recipe.getSerializer().write(buffer, recipe);
-        },
-        (buffer) -> {
-            Identifier recipeSerializerId = buffer.readIdentifier();
-            Identifier recipeId = buffer.readIdentifier();
-            RecipeSerializer serializer = Registry.RECIPE_SERIALIZER.get(recipeSerializerId);
-            return serializer.read(recipeId, buffer);
-        },
-        (jsonElement) -> {
-            if(!jsonElement.isJsonObject()) {
-                throw new RuntimeException("Expected recipe to be a JSON object.");
-            }
-            JsonObject json = jsonElement.getAsJsonObject();
-            Identifier recipeSerializerId = Identifier.tryParse(JsonHelper.getString(json, "type"));
-            Identifier recipeId = Identifier.tryParse(JsonHelper.getString(json, "id"));
-            RecipeSerializer serializer = Registry.RECIPE_SERIALIZER.get(recipeSerializerId);
-            return serializer.read(recipeId, json);
-        });
-
-    public static final SerializableDataType<GameEvent> GAME_EVENT = SerializableDataType.registry(GameEvent.class, Registry.GAME_EVENT);
-
-    public static final SerializableDataType<List<GameEvent>> GAME_EVENTS =
-        SerializableDataType.list(GAME_EVENT);
-
-    public static final SerializableDataType<Tag<GameEvent>> GAME_EVENT_TAG = SerializableDataType.wrap(ClassUtil.castClass(Tag.class), SerializableDataTypes.IDENTIFIER,
-        tag -> Calio.getTagManager().getTagId(Registry.GAME_EVENT_KEY, tag, RuntimeException::new),
-        id -> new IdentifiedTag<>(Registry.GAME_EVENT_KEY, id));
-
-    public static final SerializableDataType<Fluid> FLUID = SerializableDataType.registry(Fluid.class, Registry.FLUID);
-
-    public static final SerializableDataType<CameraSubmersionType> CAMERA_SUBMERSION_TYPE = SerializableDataType.enumValue(CameraSubmersionType.class);
-
-    public static final SerializableDataType<Hand> HAND = SerializableDataType.enumValue(Hand.class);
-
-    public static final SerializableDataType<EnumSet<Hand>> HAND_SET = SerializableDataType.enumSet(Hand.class, HAND);
-
-    public static final SerializableDataType<EnumSet<EquipmentSlot>> EQUIPMENT_SLOT_SET = SerializableDataType.enumSet(EquipmentSlot.class, EQUIPMENT_SLOT);
-
-    public static final SerializableDataType<ActionResult> ACTION_RESULT = SerializableDataType.enumValue(ActionResult.class);
-
-    public static final SerializableDataType<UseAction> USE_ACTION = SerializableDataType.enumValue(UseAction.class);
-
-    public static final SerializableDataType<StatusEffectChance> STATUS_EFFECT_CHANCE =
-        SerializableDataType.compound(StatusEffectChance.class, new SerializableData()
-            .add("effect", STATUS_EFFECT_INSTANCE)
-            .add("chance", FLOAT, 1.0F),
-            (data) -> {
-                StatusEffectChance sec = new StatusEffectChance();
-                sec.statusEffectInstance = data.get("effect");
-                sec.chance = data.getFloat("chance");
-                return sec;
-            },
-            (data, csei) -> {
-                SerializableData.Instance inst = data.new Instance();
-                inst.set("effect", csei.statusEffectInstance);
-                inst.set("chance", csei.chance);
-                return inst;
-            });
-
-    public static final SerializableDataType<List<StatusEffectChance>> STATUS_EFFECT_CHANCES = SerializableDataType.list(STATUS_EFFECT_CHANCE);
-
-    public static final SerializableDataType<FoodComponent> FOOD_COMPONENT = SerializableDataType.compound(FoodComponent.class, new SerializableData()
-            .add("hunger", INT)
-            .add("saturation", FLOAT)
-            .add("meat", BOOLEAN, false)
-            .add("always_edible", BOOLEAN, false)
-            .add("snack", BOOLEAN, false)
-            .add("effect", STATUS_EFFECT_CHANCE, null)
-            .add("effects", STATUS_EFFECT_CHANCES, null),
-        (data) -> {
-            FoodComponent.Builder builder = new FoodComponent.Builder().hunger(data.getInt("hunger")).saturationModifier(data.getFloat("saturation"));
-            if (data.getBoolean("meat")) {
-                builder.meat();
-            }
-            if (data.getBoolean("always_edible")) {
-                builder.alwaysEdible();
-            }
-            if (data.getBoolean("snack")) {
-                builder.snack();
-            }
-            data.<StatusEffectChance>ifPresent("effect", sec -> {
-                builder.statusEffect(sec.statusEffectInstance, sec.chance);
-            });
-            data.<List<StatusEffectChance>>ifPresent("effects", secs -> secs.forEach(sec -> {
-                builder.statusEffect(sec.statusEffectInstance, sec.chance);
-            }));
-            return builder.build();
-        },
-        (data, fc) -> {
-            SerializableData.Instance inst = data.new Instance();
-            inst.set("hunger", fc.getHunger());
-            inst.set("saturation", fc.getSaturationModifier());
-            inst.set("meat", fc.isMeat());
-            inst.set("always_edible", fc.isAlwaysEdible());
-            inst.set("snack", fc.isSnack());
-            inst.set("effect", null);
-            List<StatusEffectChance> statusEffectChances = new LinkedList<>();
-            fc.getStatusEffects().forEach(pair -> {
-                StatusEffectChance sec = new StatusEffectChance();
-                sec.statusEffectInstance = pair.getFirst();
-                sec.chance = pair.getSecond();
-                statusEffectChances.add(sec);
-            });
-            if(statusEffectChances.size() > 0) {
-                inst.set("effects", statusEffectChances);
-            } else {
-                inst.set("effects", null);
-            }
-            return inst;
-        });
-
-    public static final SerializableDataType<Direction> DIRECTION = SerializableDataType.enumValue(Direction.class);
-
-    public static final SerializableDataType<EnumSet<Direction>> DIRECTION_SET = SerializableDataType.enumSet(Direction.class, DIRECTION);
-
-    public static final SerializableDataType<Class<?>> CLASS = SerializableDataType.wrap(ClassUtil.castClass(Class.class), SerializableDataTypes.STRING,
-        Class::getName,
-        str -> {
-            try {
-                return Class.forName(str);
-            } catch (ClassNotFoundException e) {
-                throw new RuntimeException("Specified class does not exist: \"" + str + "\".");
-            }
-        });
-
-    public static final SerializableDataType<RaycastContext.ShapeType> SHAPE_TYPE = SerializableDataType.enumValue(RaycastContext.ShapeType.class);
-
-    public static final SerializableDataType<RaycastContext.FluidHandling> FLUID_HANDLING = SerializableDataType.enumValue(RaycastContext.FluidHandling.class);
-
-    public static final SerializableDataType<Explosion.DestructionType> DESTRUCTION_TYPE = SerializableDataType.enumValue(Explosion.DestructionType.class);
-
-    public static final SerializableDataType<Direction.Axis> AXIS = SerializableDataType.enumValue(Direction.Axis.class);
-
-    public static final SerializableDataType<EnumSet<Direction.Axis>> AXIS_SET = SerializableDataType.enumSet(Direction.Axis.class, AXIS);
-
-    private static final HashMap<String, Material> MATERIAL_MAP;
-    static {
-        MATERIAL_MAP = new HashMap<>();
-        MATERIAL_MAP.put("air", Material.AIR);
-        MATERIAL_MAP.put("structure_void", Material.STRUCTURE_VOID);
-        MATERIAL_MAP.put("portal", Material.PORTAL);
-        MATERIAL_MAP.put("carpet", Material.CARPET);
-        MATERIAL_MAP.put("plant", Material.PLANT);
-        MATERIAL_MAP.put("underwater_plant", Material.UNDERWATER_PLANT);
-        MATERIAL_MAP.put("replaceable_plant", Material.REPLACEABLE_PLANT);
-        MATERIAL_MAP.put("nether_shoots", Material.NETHER_SHOOTS);
-        MATERIAL_MAP.put("replaceable_underwater_plant", Material.REPLACEABLE_UNDERWATER_PLANT);
-        MATERIAL_MAP.put("water", Material.WATER);
-        MATERIAL_MAP.put("bubble_column", Material.BUBBLE_COLUMN);
-        MATERIAL_MAP.put("lava", Material.LAVA);
-        MATERIAL_MAP.put("snow_layer", Material.SNOW_LAYER);
-        MATERIAL_MAP.put("fire", Material.FIRE);
-        MATERIAL_MAP.put("decoration", Material.DECORATION);
-        MATERIAL_MAP.put("cobweb", Material.COBWEB);
-        MATERIAL_MAP.put("sculk", Material.SCULK);
-        MATERIAL_MAP.put("redstone_lamp", Material.REDSTONE_LAMP);
-        MATERIAL_MAP.put("organic_product", Material.ORGANIC_PRODUCT);
-        MATERIAL_MAP.put("soil", Material.SOIL);
-        MATERIAL_MAP.put("solid_organic", Material.SOLID_ORGANIC);
-        MATERIAL_MAP.put("dense_ice", Material.DENSE_ICE);
-        MATERIAL_MAP.put("aggregate", Material.AGGREGATE);
-        MATERIAL_MAP.put("sponge", Material.SPONGE);
-        MATERIAL_MAP.put("shulker_box", Material.SHULKER_BOX);
-        MATERIAL_MAP.put("wood", Material.WOOD);
-        MATERIAL_MAP.put("nether_wood", Material.NETHER_WOOD);
-        MATERIAL_MAP.put("bamboo_sapling", Material.BAMBOO_SAPLING);
-        MATERIAL_MAP.put("bamboo", Material.BAMBOO);
-        MATERIAL_MAP.put("wool", Material.WOOL);
-        MATERIAL_MAP.put("tnt", Material.TNT);
-        MATERIAL_MAP.put("leaves", Material.LEAVES);
-        MATERIAL_MAP.put("glass", Material.GLASS);
-        MATERIAL_MAP.put("ice", Material.ICE);
-        MATERIAL_MAP.put("cactus", Material.CACTUS);
-        MATERIAL_MAP.put("stone", Material.STONE);
-        MATERIAL_MAP.put("metal", Material.METAL);
-        MATERIAL_MAP.put("snow_block", Material.SNOW_BLOCK);
-        MATERIAL_MAP.put("repair_station", Material.REPAIR_STATION);
-        MATERIAL_MAP.put("barrier", Material.BARRIER);
-        MATERIAL_MAP.put("piston", Material.PISTON);
-        MATERIAL_MAP.put("moss_block", Material.MOSS_BLOCK);
-        MATERIAL_MAP.put("gourd", Material.GOURD);
-        MATERIAL_MAP.put("egg", Material.EGG);
-        MATERIAL_MAP.put("cake", Material.CAKE);
-        MATERIAL_MAP.put("amethyst", Material.AMETHYST);
-        MATERIAL_MAP.put("powder_snow", Material.POWDER_SNOW);
-    }
-
-    public static final SerializableDataType<Material> MATERIAL = SerializableDataType.mapped(Material.class, HashBiMap.create(
-        MATERIAL_MAP
-    ));
-
-    public static final SerializableDataType<List<Material>> MATERIALS = SerializableDataType.list(MATERIAL);
 	public static final SerializableDataType<Component> TEXT = new SerializableDataType<>(Component.class,
 			(buffer, text) -> buffer.writeUtf(Component.Serializer.toJson(text)),
 			(buffer) -> Component.Serializer.fromJson(buffer.readUtf()),
 			Component.Serializer::fromJson,
 			Component.Serializer::toJsonTree);
+
+	public static final SerializableDataType<List<Component>> TEXTS = SerializableDataType.list(TEXT);
+
+	public static SerializableDataType<ResourceKey<Level>> DIMENSION = SerializableDataType.wrap(
+			ClassUtil.castClass(ResourceKey.class),
+			SerializableDataTypes.IDENTIFIER,
+			ResourceKey::location, identifier -> ResourceKey.create(Registry.DIMENSION_REGISTRY, identifier)
+	);
+
 	// It is theoretically possible to support recipe serialization, but it's a mess.
 	// To do this, we need to keep an additional list functions designed to build RecipeJsonProvider
 	// from recipes, which is possible, but time consuming to setup, and prone to breaking if another
@@ -692,15 +440,174 @@ public final class SerializableDataTypes {
 				RecipeSerializer serializer = ForgeRegistries.RECIPE_SERIALIZERS.getValue(recipeSerializerId);
 				return serializer.fromJson(recipeId, json);
 			});
+
 	public static final SerializableDataType<GameEvent> GAME_EVENT = SerializableDataType.registry(GameEvent.class, Registry.GAME_EVENT);
-	public static final SerializableDataType<List<GameEvent>> GAME_EVENTS =
-			SerializableDataType.list(GAME_EVENT);
-	public static final SerializableDataType<Tag<GameEvent>> GAME_EVENT_TAG = SerializableDataType.wrap(ClassUtil.castClass(Tag.class), SerializableDataTypes.IDENTIFIER,
-			tag -> Calio.getTagManager().getIdOrThrow(Registry.GAME_EVENT_REGISTRY, tag, RuntimeException::new),
-			id -> new IdentifiedTag<>(Registry.GAME_EVENT_REGISTRY, id));
-	public static SerializableDataType<ResourceKey<Level>> DIMENSION = SerializableDataType.wrap(
-			ClassUtil.castClass(ResourceKey.class),
-			SerializableDataTypes.IDENTIFIER,
-			ResourceKey::location, identifier -> ResourceKey.create(Registry.DIMENSION_REGISTRY, identifier)
-	);
+
+	public static final SerializableDataType<List<GameEvent>> GAME_EVENTS = SerializableDataType.list(GAME_EVENT);
+
+	public static final SerializableDataType<Tag<GameEvent>> GAME_EVENT_TAG = SerializableDataType.tag(Registry.GAME_EVENT_REGISTRY);
+
+	public static final SerializableDataType<Fluid> FLUID = SerializableDataType.registry(Fluid.class, Registry.FLUID);
+
+	public static final SerializableDataType<FogType> CAMERA_SUBMERSION_TYPE = SerializableDataType.enumValue(FogType.class);
+
+	public static final SerializableDataType<InteractionHand> HAND = SerializableDataType.enumValue(InteractionHand.class);
+
+	public static final SerializableDataType<EnumSet<InteractionHand>> HAND_SET = SerializableDataType.enumSet(InteractionHand.class, HAND);
+
+	public static final SerializableDataType<EnumSet<EquipmentSlot>> EQUIPMENT_SLOT_SET = SerializableDataType.enumSet(EquipmentSlot.class, EQUIPMENT_SLOT);
+
+	public static final SerializableDataType<InteractionResult> ACTION_RESULT = SerializableDataType.enumValue(InteractionResult.class);
+
+	public static final SerializableDataType<UseAnim> USE_ACTION = SerializableDataType.enumValue(UseAnim.class);
+
+	public static final SerializableDataType<StatusEffectChance> STATUS_EFFECT_CHANCE =
+			SerializableDataType.compound(StatusEffectChance.class, new SerializableData()
+							.add("effect", STATUS_EFFECT_INSTANCE)
+							.add("chance", FLOAT, 1.0F),
+					(data) -> {
+						StatusEffectChance sec = new StatusEffectChance();
+						sec.statusEffectInstance = data.get("effect");
+						sec.chance = data.getFloat("chance");
+						return sec;
+					},
+					(data, csei) -> {
+						SerializableData.Instance inst = data.new Instance();
+						inst.set("effect", csei.statusEffectInstance);
+						inst.set("chance", csei.chance);
+						return inst;
+					});
+
+	public static final SerializableDataType<List<StatusEffectChance>> STATUS_EFFECT_CHANCES = SerializableDataType.list(STATUS_EFFECT_CHANCE);
+
+	public static final SerializableDataType<FoodProperties> FOOD_COMPONENT = SerializableDataType.compound(FoodProperties.class, new SerializableData()
+					.add("hunger", INT)
+					.add("saturation", FLOAT)
+					.add("meat", BOOLEAN, false)
+					.add("always_edible", BOOLEAN, false)
+					.add("snack", BOOLEAN, false)
+					.add("effect", STATUS_EFFECT_CHANCE, null)
+					.add("effects", STATUS_EFFECT_CHANCES, null),
+			(data) -> {
+				FoodProperties.Builder builder = new FoodProperties.Builder().nutrition(data.getInt("hunger")).saturationMod(data.getFloat("saturation"));
+				if (data.getBoolean("meat")) {
+					builder.meat();
+				}
+				if (data.getBoolean("always_edible")) {
+					builder.alwaysEat();
+				}
+				if (data.getBoolean("snack")) {
+					builder.fast();
+				}
+				data.<StatusEffectChance>ifPresent("effect", sec -> {
+					builder.effect(sec.statusEffectInstance, sec.chance);
+				});
+				data.<List<StatusEffectChance>>ifPresent("effects", secs -> secs.forEach(sec -> {
+					builder.effect(sec.statusEffectInstance, sec.chance);
+				}));
+				return builder.build();
+			},
+			(data, fc) -> {
+				SerializableData.Instance inst = data.new Instance();
+				inst.set("hunger", fc.getNutrition());
+				inst.set("saturation", fc.getSaturationModifier());
+				inst.set("meat", fc.isMeat());
+				inst.set("always_edible", fc.canAlwaysEat());
+				inst.set("snack", fc.isFastFood());
+				inst.set("effect", null);
+				List<StatusEffectChance> statusEffectChances = new LinkedList<>();
+				fc.getEffects().forEach(pair -> {
+					StatusEffectChance sec = new StatusEffectChance();
+					sec.statusEffectInstance = pair.getFirst();
+					sec.chance = pair.getSecond();
+					statusEffectChances.add(sec);
+				});
+				if (statusEffectChances.size() > 0) {
+					inst.set("effects", statusEffectChances);
+				} else {
+					inst.set("effects", null);
+				}
+				return inst;
+			});
+
+	public static final SerializableDataType<Direction> DIRECTION = SerializableDataType.enumValue(Direction.class);
+
+	public static final SerializableDataType<EnumSet<Direction>> DIRECTION_SET = SerializableDataType.enumSet(Direction.class, DIRECTION);
+
+	public static final SerializableDataType<Class<?>> CLASS = SerializableDataType.wrap(ClassUtil.castClass(Class.class), SerializableDataTypes.STRING,
+			Class::getName,
+			str -> {
+				try {
+					return Class.forName(str);
+				} catch (ClassNotFoundException e) {
+					throw new RuntimeException("Specified class does not exist: \"" + str + "\".");
+				}
+			});
+
+	public static final SerializableDataType<ClipContext.Block> SHAPE_TYPE = SerializableDataType.enumValue(ClipContext.Block.class);
+
+	public static final SerializableDataType<ClipContext.Fluid> FLUID_HANDLING = SerializableDataType.enumValue(ClipContext.Fluid.class);
+
+	public static final SerializableDataType<Explosion.BlockInteraction> DESTRUCTION_TYPE = SerializableDataType.enumValue(Explosion.BlockInteraction.class);
+
+	public static final SerializableDataType<Direction.Axis> AXIS = SerializableDataType.enumValue(Direction.Axis.class);
+
+	public static final SerializableDataType<EnumSet<Direction.Axis>> AXIS_SET = SerializableDataType.enumSet(Direction.Axis.class, AXIS);
+
+	private static final HashMap<String, Material> MATERIAL_MAP;
+
+	static {
+		MATERIAL_MAP = new HashMap<>();
+		MATERIAL_MAP.put("air", Material.AIR);
+		MATERIAL_MAP.put("structure_void", Material.STRUCTURAL_AIR);
+		MATERIAL_MAP.put("portal", Material.PORTAL);
+		MATERIAL_MAP.put("carpet", Material.CLOTH_DECORATION);
+		MATERIAL_MAP.put("plant", Material.PLANT);
+		MATERIAL_MAP.put("underwater_plant", Material.WATER_PLANT);
+		MATERIAL_MAP.put("replaceable_plant", Material.REPLACEABLE_PLANT);
+		MATERIAL_MAP.put("nether_shoots", Material.REPLACEABLE_FIREPROOF_PLANT);
+		MATERIAL_MAP.put("replaceable_underwater_plant", Material.REPLACEABLE_WATER_PLANT);
+		MATERIAL_MAP.put("water", Material.WATER);
+		MATERIAL_MAP.put("bubble_column", Material.BUBBLE_COLUMN);
+		MATERIAL_MAP.put("lava", Material.LAVA);
+		MATERIAL_MAP.put("snow_layer", Material.TOP_SNOW);
+		MATERIAL_MAP.put("fire", Material.FIRE);
+		MATERIAL_MAP.put("decoration", Material.DECORATION);
+		MATERIAL_MAP.put("cobweb", Material.WEB);
+		MATERIAL_MAP.put("sculk", Material.SCULK);
+		MATERIAL_MAP.put("redstone_lamp", Material.BUILDABLE_GLASS);
+		MATERIAL_MAP.put("organic_product", Material.CLAY);
+		MATERIAL_MAP.put("soil", Material.DIRT);
+		MATERIAL_MAP.put("solid_organic", Material.GRASS);
+		MATERIAL_MAP.put("dense_ice", Material.ICE_SOLID);
+		MATERIAL_MAP.put("aggregate", Material.SAND);
+		MATERIAL_MAP.put("sponge", Material.SPONGE);
+		MATERIAL_MAP.put("shulker_box", Material.SHULKER_SHELL);
+		MATERIAL_MAP.put("wood", Material.WOOD);
+		MATERIAL_MAP.put("nether_wood", Material.NETHER_WOOD);
+		MATERIAL_MAP.put("bamboo_sapling", Material.BAMBOO_SAPLING);
+		MATERIAL_MAP.put("bamboo", Material.BAMBOO);
+		MATERIAL_MAP.put("wool", Material.WOOL);
+		MATERIAL_MAP.put("tnt", Material.EXPLOSIVE);
+		MATERIAL_MAP.put("leaves", Material.LEAVES);
+		MATERIAL_MAP.put("glass", Material.GLASS);
+		MATERIAL_MAP.put("ice", Material.ICE);
+		MATERIAL_MAP.put("cactus", Material.CACTUS);
+		MATERIAL_MAP.put("stone", Material.STONE);
+		MATERIAL_MAP.put("metal", Material.METAL);
+		MATERIAL_MAP.put("snow_block", Material.SNOW);
+		MATERIAL_MAP.put("repair_station", Material.HEAVY_METAL);
+		MATERIAL_MAP.put("barrier", Material.BARRIER);
+		MATERIAL_MAP.put("piston", Material.PISTON);
+		MATERIAL_MAP.put("moss_block", Material.MOSS);
+		MATERIAL_MAP.put("gourd", Material.VEGETABLE);
+		MATERIAL_MAP.put("egg", Material.EGG);
+		MATERIAL_MAP.put("cake", Material.CAKE);
+		MATERIAL_MAP.put("amethyst", Material.AMETHYST);
+		MATERIAL_MAP.put("powder_snow", Material.POWDER_SNOW);
+	}
+
+	public static final SerializableDataType<Material> MATERIAL = SerializableDataType.mapped(Material.class, HashBiMap.create(MATERIAL_MAP));
+
+	public static final SerializableDataType<List<Material>> MATERIALS = SerializableDataType.list(MATERIAL);
 }

@@ -1,14 +1,16 @@
 package io.github.apace100.calio.util;
 
-import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
-import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
-import net.minecraft.resource.ResourceType;
-import net.minecraft.util.Identifier;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import io.github.edwinmindcraft.calio.common.registry.CalioDynamicRegistryManager;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.resources.PreparableReloadListener;
+import net.minecraft.server.packs.resources.ReloadableResourceManager;
+import net.minecraftforge.event.AddReloadListenerEvent;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Allows registering data resource listeners in a specified order, to prevent problems
@@ -16,62 +18,73 @@ import java.util.Set;
  */
 public final class OrderedResourceListeners {
 
-    private static final Set<Identifier> finalizedRegistrations = new HashSet<>();
-    private static final HashMap<Identifier, Registration> registrations = new HashMap<>();
+	private static final Map<ResourceLocation, ImmutableRegistration> REGISTRATIONS = new HashMap<>();
 
-    public static Registration register(IdentifiableResourceReloadListener resourceReloadListener) {
-        Registration registration = new Registration(resourceReloadListener);
-        return registration;
-    }
+	public static List<PreparableReloadListener> orderedList() {
+		List<ResourceLocation> handled = new ArrayList<>();
+		int prevSize;
+		do {
+			prevSize = handled.size();
+			for (ImmutableRegistration value : REGISTRATIONS.values()) {
+				if (handled.contains(value.key()))
+					continue;
+				if (handled.containsAll(value.dependencies()))
+					handled.add(value.key());
+			}
+		} while (prevSize != handled.size());
+		if (handled.size() != REGISTRATIONS.size())
+			throw new IllegalStateException("Some validators have missing or circular dependencies: [" + String.join(",", REGISTRATIONS.values().stream().filter(x -> !handled.contains(x.key())).map(Record::toString).collect(Collectors.toSet())) + "]");
+		return handled.stream().map(REGISTRATIONS::get).filter(x -> !x.dummy() && x.listener() != null).map(ImmutableRegistration::listener).collect(ImmutableList.toImmutableList());
+	}
 
-    private static void completeRegistration(Registration registration) {
-        registration.afterSet.removeAll(finalizedRegistrations);
-        if(registration.afterSet.size() == 0) {
-            finalizeRegistration(registration);
-        } else {
-            registrations.put(registration.resourceReloadListener.getFabricId(), registration);
-        }
-    }
+	public static Registration register(PreparableReloadListener resourceReloadListener, ResourceLocation location) {
+		return new Registration(resourceReloadListener, location);
+	}
 
-    private static void finalizeRegistration(Registration registration) {
-        ResourceManagerHelper.get(ResourceType.SERVER_DATA).registerReloadListener(registration.resourceReloadListener);
-        Identifier id = registration.resourceReloadListener.getFabricId();
-        finalizedRegistrations.add(id);
-        registrations.remove(id);
-        Set<Identifier> finishedOnes = new HashSet<>();
-        for(Map.Entry<Identifier, Registration> registrationEntry : registrations.entrySet()) {
-            registrationEntry.getValue().afterSet.remove(id);
-            if(registrationEntry.getValue().afterSet.size() == 0) {
-                finishedOnes.add(registrationEntry.getKey());
-            }
-        }
-        for(Identifier finished : finishedOnes) {
-            finalizeRegistration(registrations.get(finished));
-        }
-    }
+	public static void addDummy(ResourceLocation location) {
+		new Registration(null, location, true).complete();
+	}
 
-    public static class Registration {
+	private static void completeRegistration(Registration registration) {
+		REGISTRATIONS.put(registration.key(), new ImmutableRegistration(registration.resourceReloadListener, registration.key(), registration.afterSet.build(), registration.dummy));
+	}
 
-        private final IdentifiableResourceReloadListener resourceReloadListener;
-        private final Set<Identifier> afterSet = new HashSet<>();
-        private boolean isCompleted;
+	private record ImmutableRegistration(PreparableReloadListener listener, ResourceLocation key, ImmutableSet<ResourceLocation> dependencies, boolean dummy) {}
 
-        private Registration(IdentifiableResourceReloadListener resourceReloadListener) {
-            this.resourceReloadListener = resourceReloadListener;
-        }
+	public static class Registration {
 
-        public Registration after(Identifier identifier) {
-            if(isCompleted) {
-                throw new IllegalStateException(
-                    "Can't add a resource reload listener registration dependency after it was completed.");
-            }
-            afterSet.add(identifier);
-            return this;
-        }
+		private final PreparableReloadListener resourceReloadListener;
+		private final ResourceLocation key;
+		private final ImmutableSet.Builder<ResourceLocation> afterSet = new ImmutableSet.Builder<>();
+		private final boolean dummy;
+		private boolean isCompleted;
 
-        public void complete() {
-            completeRegistration(this);
-            isCompleted = true;
-        }
-    }
+		private Registration(PreparableReloadListener resourceReloadListener, ResourceLocation key, boolean dummy) {
+			this.resourceReloadListener = resourceReloadListener;
+			this.key = key;
+			this.dummy = dummy;
+		}
+
+		private Registration(PreparableReloadListener resourceReloadListener, ResourceLocation key) {
+			this(resourceReloadListener, key, false);
+		}
+
+		public ResourceLocation key() {
+			return this.key;
+		}
+
+		public Registration after(ResourceLocation identifier) {
+			if (this.isCompleted) {
+				throw new IllegalStateException(
+						"Can't add a resource reload listener registration dependency after it was completed.");
+			}
+			this.afterSet.add(identifier);
+			return this;
+		}
+
+		public void complete() {
+			completeRegistration(this);
+			this.isCompleted = true;
+		}
+	}
 }

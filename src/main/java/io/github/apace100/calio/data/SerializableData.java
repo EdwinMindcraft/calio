@@ -202,11 +202,8 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 		}
 
 		public <T> void ifPresent(String name, Consumer<T> consumer) {
-			if(isPresent(name)) {
-				Object o = get(name);
-				T t = (T)o;
-				consumer.accept(t);
-			}
+			if(this.isPresent(name))
+				consumer.accept(this.get(name));
 		}
 
 		public void set(String name, Object value) {
@@ -214,38 +211,38 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 		}
 
 		public <T> T get(String name) {
-			if(!data.containsKey(name)) {
+			if(!this.data.containsKey(name)) {
 				throw new RuntimeException("Tried to get field \"" + name + "\" from data, which did not exist.");
 			}
-			return (T)data.get(name);
+			return (T) this.data.get(name);
 		}
 
 		public int getInt(String name) {
-			return (int) this.get(name);
+			return this.get(name);
 		}
 
 		public boolean getBoolean(String name) {
-			return (boolean) this.get(name);
+			return this.get(name);
 		}
 
 		public float getFloat(String name) {
-			return (float) this.get(name);
+			return this.get(name);
 		}
 
 		public double getDouble(String name) {
-			return (double) this.get(name);
+			return this.get(name);
 		}
 
 		public String getString(String name) {
-			return (String) this.get(name);
+			return this.get(name);
 		}
 
 		public ResourceLocation getId(String name) {
-			return (ResourceLocation) this.get(name);
+			return this.get(name);
 		}
 
 		public AttributeModifier getModifier(String name) {
-			return (AttributeModifier) this.get(name);
+			return this.get(name);
 		}
 	}
 }

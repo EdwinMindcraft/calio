@@ -1,6 +1,8 @@
 package io.github.edwinmindcraft.calio.common;
 
 import io.github.apace100.calio.Calio;
+import io.github.apace100.calio.registry.DataObjectRegistry;
+import io.github.apace100.calio.util.OrderedResourceListeners;
 import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.api.ability.IAbilityHolder;
 import io.github.edwinmindcraft.calio.common.ability.AbilityHolder;
@@ -32,12 +34,14 @@ public class CalioEventHandler {
 	public static void onDatapack(OnDatapackSyncEvent event) {
 		PacketDistributor.PacketTarget target = event.getPlayer() == null ? PacketDistributor.ALL.noArg() : PacketDistributor.PLAYER.with(event::getPlayer);
 		CalioNetwork.CHANNEL.send(target, new S2CDynamicRegistriesPacket(CalioDynamicRegistryManager.getInstance(event.getPlayerList().getServer().registryAccess())));
+		DataObjectRegistry.performAutoSync(event.getPlayer());
 	}
 
 	@SubscribeEvent
 	public static void onServerReload(AddReloadListenerEvent event) {
 		CalioDynamicRegistryManager instance = CalioDynamicRegistryManager.getInstance(event.getDataPackRegistries().tagManager.registryAccess);
 		event.addListener(instance);
+		OrderedResourceListeners.orderedList().forEach(event::addListener);
 	}
 
 	@SubscribeEvent
