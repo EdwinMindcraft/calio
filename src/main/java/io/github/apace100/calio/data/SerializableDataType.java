@@ -13,6 +13,8 @@ import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
 import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.api.network.CalioCodecHelper;
+import com.google.gson.*;
+import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.FilterableWeightedList;
 import io.netty.buffer.Unpooled;
@@ -20,6 +22,13 @@ import net.minecraft.core.Registry;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.registries.ForgeRegistryEntry;
 import net.minecraftforge.registries.IForgeRegistry;
+import io.github.apace100.calio.mixin.WeightedListEntryAccessor;
+import io.github.apace100.calio.util.IdentifiedTag;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.tag.Tag;
+import net.minecraft.util.JsonHelper;
+import net.minecraft.util.registry.Registry;
+import net.minecraft.util.registry.RegistryKey;
 
 import java.util.*;
 import java.util.function.BiConsumer;
@@ -125,6 +134,52 @@ public class SerializableDataType<T> implements Codec<T> {
 						(json) -> fromFunction.apply(base.read(json)),
 						base.write != null ? (t) -> base.write(toFunction.apply(t)) : null));
 	}
+
+    public static <T> SerializableDataType<Tag<T>> tag(RegistryKey<? extends Registry<T>> registryKey) {
+        return SerializableDataType.wrap(ClassUtil.castClass(Tag.class), SerializableDataTypes.IDENTIFIER,
+                item -> {
+                    if(item instanceof Tag.Identified<T>) {
+                        return ((Tag.Identified<T>)item).getId();
+                    }
+                    return Calio.getTagManager().getTagId(registryKey, item, () -> new JsonSyntaxException("Unknown tag"));
+                },
+                id -> new IdentifiedTag<>(registryKey, id));
+    }
+
+    public static <T extends Enum<T>> SerializableDataType<EnumSet<T>> enumSet(Class<T> enumClass, SerializableDataType<T> enumDataType) {
+        return new SerializableDataType<>(ClassUtil.castClass(EnumSet.class),
+                (buf, set) -> {
+                    buf.writeInt(set.size());
+                    set.forEach(t -> buf.writeInt(t.ordinal()));
+                },
+                (buf) -> {
+                    int size = buf.readInt();
+                    EnumSet<T> set = EnumSet.noneOf(enumClass);
+                    T[] allValues = enumClass.getEnumConstants();
+                    for(int i = 0; i < size; i++) {
+                        int ordinal = buf.readInt();
+                        set.add(allValues[ordinal]);
+                    }
+                    return set;
+                },
+                (json) -> {
+                    EnumSet<T> set = EnumSet.noneOf(enumClass);
+                    if(json.isJsonPrimitive()) {
+                        T t = enumDataType.read.apply(json);
+                        set.add(t);
+                    } else
+                    if(json.isJsonArray()) {
+                        JsonArray array = json.getAsJsonArray();
+                        for (JsonElement jsonElement : array) {
+                            T t = enumDataType.read.apply(jsonElement);
+                            set.add(t);
+                        }
+                    } else {
+                        throw new RuntimeException("Expected enum set to be either an array or a primitive.");
+                    }
+                    return set;
+                });
+    }
 
 	public void send(FriendlyByteBuf buffer, Object value) {
 		this.send.accept(buffer, this.cast(value));

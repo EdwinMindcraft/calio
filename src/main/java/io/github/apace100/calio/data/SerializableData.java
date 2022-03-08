@@ -11,6 +11,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -200,15 +201,23 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 			return true;
 		}
 
+		public <T> void ifPresent(String name, Consumer<T> consumer) {
+			if(isPresent(name)) {
+				Object o = get(name);
+				T t = (T)o;
+				consumer.accept(t);
+			}
+		}
+
 		public void set(String name, Object value) {
 			this.data.put(name, value);
 		}
 
-		public Object get(String name) {
-			if (!this.data.containsKey(name)) {
+		public <T> T get(String name) {
+			if(!data.containsKey(name)) {
 				throw new RuntimeException("Tried to get field \"" + name + "\" from data, which did not exist.");
 			}
-			return this.data.get(name);
+			return (T)data.get(name);
 		}
 
 		public int getInt(String name) {
