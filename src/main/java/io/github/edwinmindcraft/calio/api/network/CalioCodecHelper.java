@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.gson.*;
 import com.mojang.datafixers.util.Either;
 import com.mojang.datafixers.util.Pair;
+import com.mojang.math.Vector3f;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.MapCodec;
@@ -151,6 +152,14 @@ public class CalioCodecHelper {
 		).apply(instance, Vec3::new));
 	}
 
+	public static MapCodec<Vector3f> vec3f(String xName, String yName, String zName) {
+		return RecordCodecBuilder.mapCodec(instance -> instance.group(
+				CalioCodecHelper.optionalField(Codec.FLOAT, xName, 0.0F).forGetter(Vector3f::x),
+				CalioCodecHelper.optionalField(Codec.FLOAT, yName, 0.0F).forGetter(Vector3f::y),
+				CalioCodecHelper.optionalField(Codec.FLOAT, zName, 0.0F).forGetter(Vector3f::z)
+		).apply(instance, Vector3f::new));
+	}
+
 	public static MapCodec<Vec3> vec3d(String prefix) {
 		return vec3d(prefix + "x", prefix + "y", prefix + "z");
 	}
@@ -168,6 +177,7 @@ public class CalioCodecHelper {
 	}
 
 	public static MapCodec<Vec3> VEC3D = vec3d("x", "y", "z");
+	public static MapCodec<Vector3f> VEC3F = vec3f("x", "y", "z");
 	public static MapCodec<BlockPos> BLOCK_POS = blockPos("x", "y", "z");
 
 	public static <T> CodecJsonAdapter<T> jsonAdapter(Codec<T> input) {
