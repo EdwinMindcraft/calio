@@ -25,4 +25,10 @@ public class CalioDynamicRegistryEvent extends Event {
 			super(registryManager);
 		}
 	}
+
+	public static class Reload extends CalioDynamicRegistryEvent {
+		public Reload(ICalioDynamicRegistryManager registryManager) {
+			super(registryManager);
+		}
+	}
 }

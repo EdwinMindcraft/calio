@@ -34,7 +34,8 @@ public class CalioEventHandler {
 	public static void onDatapack(OnDatapackSyncEvent event) {
 		PacketDistributor.PacketTarget target = event.getPlayer() == null ? PacketDistributor.ALL.noArg() : PacketDistributor.PLAYER.with(event::getPlayer);
 		CalioNetwork.CHANNEL.send(target, new S2CDynamicRegistriesPacket(CalioDynamicRegistryManager.getInstance(event.getPlayerList().getServer().registryAccess())));
-		DataObjectRegistry.performAutoSync(event.getPlayer());
+		if (event.getPlayer() != null)
+			DataObjectRegistry.performAutoSync(event.getPlayer());
 	}
 
 	@SubscribeEvent

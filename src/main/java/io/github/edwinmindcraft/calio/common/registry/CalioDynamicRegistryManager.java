@@ -109,6 +109,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	private CompletableFuture<Void> reload(Map<ResourceKey<?>, Map<ResourceLocation, List<JsonElement>>> input, Executor executor) {
+		MinecraftForge.EVENT_BUS.post(new CalioDynamicRegistryEvent.Reload(this));
 		input.keySet().forEach(x -> this.reset((ResourceKey) x));
 		ConcurrentHashMap<ResourceKey<?>, Map<ResourceLocation, ?>> map = new ConcurrentHashMap<>();
 		CompletableFuture<?>[] completableFutures = this.factories.entrySet().stream()
