@@ -31,7 +31,7 @@ function initializeCoreMod() {
             'target': {
                 'type': 'METHOD',
                 'class': 'net.minecraft.world.item.ItemStack',
-                'methodName': 'resetHoverName',
+                'methodName': ASMAPI.mapMethod('m_41787_'),
                 'methodDesc': '()V'
             },
             'transformer': function (node) {
