@@ -5,6 +5,7 @@ import io.github.apace100.calio.util.ClientTagManagerGetter;
 import io.github.apace100.calio.util.ServerTagManagerGetter;
 import io.github.apace100.calio.util.TagManagerGetter;
 import io.github.edwinmindcraft.calio.common.CalioCommon;
+import io.github.edwinmindcraft.calio.common.CalioConfig;
 import io.github.edwinmindcraft.calio.common.network.CalioNetwork;
 import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.core.Registry;
@@ -20,6 +21,14 @@ import net.minecraftforge.fml.common.Mod;
 
 @Mod(CalioAPI.MODID)
 public class Calio {
+
+	/**
+	 * This is a thing I've seen a certain modder whose name shan't be mentioned do.<br/>
+	 * It's Reika, the modder in question is Reika.
+	 */
+	public static boolean isDebugMode() {
+		return CalioConfig.COMMON.debugMode.get();
+	}
 
 	public static final ResourceLocation PACKET_SHARE_ITEM = new ResourceLocation("calio", "share_item");
 

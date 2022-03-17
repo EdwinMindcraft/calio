@@ -15,10 +15,12 @@ public class CalioConfig {
 
 	public static final class Common {
 		public final ForgeConfigSpec.BooleanValue logging;
+		public final ForgeConfigSpec.BooleanValue debugMode;
 
 		public Common(ForgeConfigSpec.Builder builder) {
 			builder.push("debug");
 			this.logging = builder.comment("Enable calio registry logging.").translation("config.calio.registry_logging").define("registry_logging", false);
+			this.debugMode = builder.comment("Enable calio debug mode").translation("config.calio.debug.debug_mode").define("debug_mode", false);
 			builder.pop();
 		}
 	}
