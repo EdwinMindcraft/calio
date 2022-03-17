@@ -19,7 +19,7 @@ public class CalioConfig {
 
 		public Common(ForgeConfigSpec.Builder builder) {
 			builder.push("debug");
-			this.logging = builder.comment("Enable calio registry logging.").translation("config.calio.registry_logging").define("registry_logging", false);
+			this.logging = builder.comment("Enable calio registry logging.").translation("config.calio.debug.registry_logging").define("registry_logging", false);
 			this.debugMode = builder.comment("Enable calio debug mode").translation("config.calio.debug.debug_mode").define("debug_mode", false);
 			builder.pop();
 		}
