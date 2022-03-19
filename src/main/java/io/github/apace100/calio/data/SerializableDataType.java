@@ -140,36 +140,7 @@ public class SerializableDataType<T> implements Codec<T> {
 
 	public static <T extends Enum<T>> SerializableDataType<EnumSet<T>> enumSet(Class<T> enumClass, SerializableDataType<T> enumDataType) {
 		return new SerializableDataType<>(ClassUtil.castClass(EnumSet.class),
-				(buf, set) -> {
-					buf.writeInt(set.size());
-					set.forEach(t -> buf.writeInt(t.ordinal()));
-				},
-				(buf) -> {
-					int size = buf.readInt();
-					EnumSet<T> set = EnumSet.noneOf(enumClass);
-					T[] allValues = enumClass.getEnumConstants();
-					for (int i = 0; i < size; i++) {
-						int ordinal = buf.readInt();
-						set.add(allValues[ordinal]);
-					}
-					return set;
-				},
-				(json) -> {
-					EnumSet<T> set = EnumSet.noneOf(enumClass);
-					if (json.isJsonPrimitive()) {
-						T t = enumDataType.read.apply(json);
-						set.add(t);
-					} else if (json.isJsonArray()) {
-						JsonArray array = json.getAsJsonArray();
-						for (JsonElement jsonElement : array) {
-							T t = enumDataType.read.apply(jsonElement);
-							set.add(t);
-						}
-					} else {
-						throw new RuntimeException("Expected enum set to be either an array or a primitive.");
-					}
-					return set;
-				});
+				CalioCodecHelper.setOf(enumDataType).xmap(EnumSet::copyOf, Function.identity()));
 	}
 
 	public void send(FriendlyByteBuf buffer, Object value) {

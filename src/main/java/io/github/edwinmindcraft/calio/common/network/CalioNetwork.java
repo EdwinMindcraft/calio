@@ -1,13 +1,17 @@
 package io.github.edwinmindcraft.calio.common.network;
 
 import io.github.edwinmindcraft.calio.api.CalioAPI;
-import io.github.edwinmindcraft.calio.common.network.packet.C2SAcknowledgePacket;
-import io.github.edwinmindcraft.calio.common.network.packet.C2SShareItemPacket;
-import io.github.edwinmindcraft.calio.common.network.packet.S2CDataObjectRegistryPacket;
-import io.github.edwinmindcraft.calio.common.network.packet.S2CDynamicRegistriesPacket;
+import io.github.edwinmindcraft.calio.common.network.packet.*;
+import io.github.edwinmindcraft.calio.common.registry.CalioDynamicRegistryManager;
+import net.minecraftforge.network.HandshakeHandler;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
+import net.minecraftforge.server.ServerLifecycleHooks;
+import org.apache.commons.lang3.tuple.Pair;
+
+import java.util.Collections;
+import java.util.List;
 
 public class CalioNetwork {
 	public static final String NETWORK_VERSION = "1.0";
@@ -18,8 +22,14 @@ public class CalioNetwork {
 		//Login
 		CHANNEL.messageBuilder(C2SAcknowledgePacket.class, index++, NetworkDirection.LOGIN_TO_SERVER)
 				.decoder(C2SAcknowledgePacket::decode).encoder(C2SAcknowledgePacket::encode)
-				.consumer(C2SAcknowledgePacket::handle)
+				.consumer(HandshakeHandler.indexFirst((handler, c2SAcknowledgePacket, context) -> c2SAcknowledgePacket.handle(context)))
 				.loginIndex(C2SAcknowledgePacket::getLoginIndex, C2SAcknowledgePacket::setLoginIndex)
+				.add();
+		CHANNEL.messageBuilder(S2CLoginDynamicRegistriesPacket.class, index++, NetworkDirection.LOGIN_TO_CLIENT)
+				.decoder(S2CLoginDynamicRegistriesPacket::decode).encoder(S2CLoginDynamicRegistriesPacket::encode)
+				.consumer(S2CLoginDynamicRegistriesPacket::handle)
+				.loginIndex(S2CLoginDynamicRegistriesPacket::getLoginIndex, S2CLoginDynamicRegistriesPacket::setLoginIndex)
+				.buildLoginPacketList(isLocal -> List.of(Pair.of("S2CLoginDynamicRegistriesPacket", new S2CLoginDynamicRegistriesPacket((CalioDynamicRegistryManager) CalioAPI.getDynamicRegistries(ServerLifecycleHooks.getCurrentServer())))))
 				.add();
 		//Play
 		CHANNEL.messageBuilder(S2CDynamicRegistriesPacket.class, index++, NetworkDirection.PLAY_TO_CLIENT)
