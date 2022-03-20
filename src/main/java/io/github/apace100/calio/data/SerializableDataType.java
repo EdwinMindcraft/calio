@@ -2,7 +2,10 @@ package io.github.apace100.calio.data;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
-import com.google.gson.*;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonSyntaxException;
 import com.mojang.datafixers.util.Either;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
@@ -110,7 +113,12 @@ public class SerializableDataType<T> implements Codec<T> {
 			map.put(enumConstant.name().toLowerCase(Locale.ROOT), enumConstant);
 		if (additionalMap != null)
 			additionalMap.forEach((s, t) -> map.forcePut(s.toLowerCase(Locale.ROOT), t));
-		Codec<T> stringCodec = Codec.STRING.xmap(x -> map.get(x.toLowerCase(Locale.ROOT)), x -> map.inverse().get(x));
+		Codec<T> stringCodec = Codec.STRING.comapFlatMap(x -> {
+			T t = map.get(x.toLowerCase(Locale.ROOT));
+			if (t != null)
+				return DataResult.success(t);
+			return DataResult.error("Value " + x + "isn't a valid member of " + dataClass.getSimpleName());
+		}, x -> map.inverse().get(x));
 		return new SerializableDataType<>(dataClass, Codec.either(ordinalCodec, stringCodec).xmap(either -> either.map(Function.identity(), Function.identity()), Either::left));
 	}
 
