@@ -82,19 +82,16 @@ public class CalioCodecHelper {
 	 * @return A new list codec.
 	 */
 	public static <T> Codec<List<T>> optionalListOf(Codec<Optional<T>> source) {
-		return Codec.either(source, source.listOf()).xmap(x -> x.map(Optional::stream, y -> y.stream().flatMap(Optional::stream)).collect(Collectors.toList()),
-				objects -> Either.right(objects.stream().filter(Objects::nonNull).map(Optional::of).collect(Collectors.toList())));
+		return CalioCodecHelper.listOf(source).xmap(x -> x.stream().flatMap(Optional::stream).collect(Collectors.toList()),
+				objects -> objects.stream().filter(Objects::nonNull).map(Optional::of).collect(Collectors.toList()));
 	}
 
 	public static <T> MapCodec<List<T>> listOf(Codec<T> source, String singular, String plural) {
 		Codec<List<T>> listCodec = listOf(source);
-		return Codec.mapEither(listCodec.fieldOf(singular), CalioCodecHelper.optionalField(listCodec, plural, ImmutableList.of())).xmap(x -> x.map(Function.identity(), Function.identity()), ls -> {
-			if (ls.isEmpty())
-				return Either.left(ImmutableList.of());
-			if (ls.size() == 1)
-				return Either.left(ls);
-			return Either.right(ls);
-		});
+		return RecordCodecBuilder.mapCodec(instance -> instance.group(
+				optionalField(listCodec, singular, ImmutableList.of()).forGetter(x -> ImmutableList.of()),
+				optionalField(listCodec, plural, ImmutableList.of()).forGetter(Function.identity())
+		).apply(instance, (ls1, ls2) -> ImmutableList.<T>builder().addAll(ls1).addAll(ls2).build()));
 	}
 
 	/**
@@ -107,7 +104,7 @@ public class CalioCodecHelper {
 	 * @return A new set codec.
 	 */
 	public static <T> Codec<Set<T>> setOf(Codec<T> source) {
-		return Codec.either(source, source.listOf()).xmap(x -> x.map(ImmutableSet::of, HashSet::new), x -> Either.right(new ArrayList<>(x)));
+		return CalioCodecHelper.listOf(source).xmap(HashSet::new, ArrayList::new);
 	}
 
 	public static <A> PropagatingOptionalFieldCodec<A> optionalField(Codec<A> codec, String name) {
