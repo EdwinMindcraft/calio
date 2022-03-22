@@ -19,7 +19,7 @@ import java.util.Map;
 
 public abstract class JsonDataProvider<T> implements DataProvider {
 
-	protected static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+	protected static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
 	protected final String modid;
 	protected final String folder;

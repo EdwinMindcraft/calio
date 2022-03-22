@@ -18,6 +18,7 @@ import io.github.apace100.calio.FilterableWeightedList;
 import io.github.apace100.calio.util.IdentifiedTag;
 import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.api.network.CalioCodecHelper;
+import io.github.edwinmindcraft.calio.api.network.EnumValueCodec;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.Registry;
 import net.minecraft.network.FriendlyByteBuf;
@@ -106,20 +107,7 @@ public class SerializableDataType<T> implements Codec<T> {
 	}
 
 	public static <T extends Enum<T>> SerializableDataType<T> enumValue(Class<T> dataClass, HashMap<String, T> additionalMap) {
-		T[] enumConstants = dataClass.getEnumConstants();
-		Codec<T> ordinalCodec = Codec.intRange(0, enumConstants.length - 1).xmap(i -> enumConstants[i], Enum::ordinal);
-		BiMap<String, T> map = HashBiMap.create();
-		for (T enumConstant : enumConstants)
-			map.put(enumConstant.name().toLowerCase(Locale.ROOT), enumConstant);
-		if (additionalMap != null)
-			additionalMap.forEach((s, t) -> map.forcePut(s.toLowerCase(Locale.ROOT), t));
-		Codec<T> stringCodec = Codec.STRING.comapFlatMap(x -> {
-			T t = map.get(x.toLowerCase(Locale.ROOT));
-			if (t != null)
-				return DataResult.success(t);
-			return DataResult.error("Value " + x + "isn't a valid member of " + dataClass.getSimpleName());
-		}, x -> map.inverse().get(x));
-		return new SerializableDataType<>(dataClass, Codec.either(ordinalCodec, stringCodec).xmap(either -> either.map(Function.identity(), Function.identity()), Either::left));
+		return new SerializableDataType<>(dataClass, new EnumValueCodec<T>(dataClass.getEnumConstants(), additionalMap));
 	}
 
 	public static <T> SerializableDataType<T> mapped(Class<T> dataClass, BiMap<String, T> map) {

@@ -37,7 +37,6 @@ public class Calio {
 	public Calio() {
 		CalioAPI.LOGGER.info("Calio {} initializing...", ModLoadingContext.get().getActiveContainer().getModInfo().getVersion());
 		CalioCommon.initialize();
-		CalioNetwork.register();
 		CriteriaTriggers.register(CodeTriggerCriterion.INSTANCE);
 		tagManagerGetter = DistExecutor.safeRunForDist(() -> ClientTagManagerGetter::new, () -> ServerTagManagerGetter::new);
 	}

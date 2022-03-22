@@ -7,6 +7,7 @@ import com.mojang.datafixers.util.Either;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.math.Vector3f;
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -69,7 +70,7 @@ public class CalioCodecHelper {
 	 * @return A new list codec.
 	 */
 	public static <T> Codec<List<T>> listOf(Codec<T> source) {
-		return Codec.either(source, source.listOf()).xmap(x -> x.map(Arrays::asList, Function.identity()), Either::right);
+		return Codec.either(source, source.listOf()).xmap(x -> x.map(Arrays::asList, Function.identity()), x -> x.size() == 1 ? Either.left(x.get(0)) : Either.right(x));
 	}
 
 	/**
@@ -89,8 +90,8 @@ public class CalioCodecHelper {
 	public static <T> MapCodec<List<T>> listOf(Codec<T> source, String singular, String plural) {
 		Codec<List<T>> listCodec = listOf(source);
 		return RecordCodecBuilder.mapCodec(instance -> instance.group(
-				optionalField(listCodec, singular, ImmutableList.of()).forGetter(x -> ImmutableList.of()),
-				optionalField(listCodec, plural, ImmutableList.of()).forGetter(Function.identity())
+				optionalField(listCodec, singular, ImmutableList.of()).forGetter(x -> x.size() == 1 ? x : ImmutableList.of()),
+				optionalField(listCodec, plural, ImmutableList.of()).forGetter(x -> x.size() == 1 ? ImmutableList.of() : x)
 		).apply(instance, (ls1, ls2) -> ImmutableList.<T>builder().addAll(ls1).addAll(ls2).build()));
 	}
 
@@ -179,6 +180,10 @@ public class CalioCodecHelper {
 
 	public static <T> CodecJsonAdapter<T> jsonAdapter(Codec<T> input) {
 		return new CodecJsonAdapter<>(input);
+	}
+
+	public static boolean isDataContext(DynamicOps<?>ops) {
+		return ops instanceof JsonOps && !ops.compressMaps();
 	}
 
 	public static class CodecJsonAdapter<T> implements JsonSerializer<T>, JsonDeserializer<T> {

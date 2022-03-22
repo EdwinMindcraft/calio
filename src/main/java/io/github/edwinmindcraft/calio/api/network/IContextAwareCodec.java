@@ -18,7 +18,7 @@ public interface IContextAwareCodec<A> extends Codec<A> {
 	A decode(FriendlyByteBuf buf);
 
 	default boolean useJson(DynamicOps<?> ops) {
-		return ops instanceof JsonOps && !ops.compressMaps();
+		return CalioCodecHelper.isDataContext(ops);
 	}
 
 	@Override
