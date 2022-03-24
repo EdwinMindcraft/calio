@@ -1,12 +1,10 @@
 package io.github.apace100.calio.data;
 
 import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSyntaxException;
-import com.mojang.datafixers.util.Either;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
@@ -15,6 +13,7 @@ import com.mojang.serialization.JsonOps;
 import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.FilterableWeightedList;
+import io.github.apace100.calio.SerializationHelper;
 import io.github.apace100.calio.util.IdentifiedTag;
 import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.api.network.CalioCodecHelper;
@@ -26,6 +25,8 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.Tag;
 import net.minecraftforge.registries.ForgeRegistryEntry;
 import net.minecraftforge.registries.IForgeRegistry;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.function.BiConsumer;
@@ -103,11 +104,15 @@ public class SerializableDataType<T> implements Codec<T> {
 	}
 
 	public static <T extends Enum<T>> SerializableDataType<T> enumValue(Class<T> dataClass) {
-		return enumValue(dataClass, null);
+		return enumValue(dataClass, (HashMap<String, T>) null);
 	}
 
-	public static <T extends Enum<T>> SerializableDataType<T> enumValue(Class<T> dataClass, HashMap<String, T> additionalMap) {
+	public static <T extends Enum<T>> SerializableDataType<T> enumValue(Class<T> dataClass, @Nullable HashMap<String, T> additionalMap) {
 		return new SerializableDataType<>(dataClass, new EnumValueCodec<T>(dataClass.getEnumConstants(), additionalMap));
+	}
+
+	public static <T extends Enum<T>> SerializableDataType<T> enumValue(Class<T> dataClass, @NotNull Function<T, String> additionalMap) {
+		return new SerializableDataType<>(dataClass, new EnumValueCodec<T>(dataClass.getEnumConstants(), SerializationHelper.buildEnumMap(dataClass, additionalMap)));
 	}
 
 	public static <T> SerializableDataType<T> mapped(Class<T> dataClass, BiMap<String, T> map) {
