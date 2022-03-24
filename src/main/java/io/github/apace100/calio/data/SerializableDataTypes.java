@@ -20,6 +20,7 @@ import io.github.edwinmindcraft.calio.api.network.CalioCodecHelper;
 import net.minecraft.ResourceLocationException;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleType;
@@ -30,9 +31,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.tags.Tag;
-import net.minecraft.tags.TagCollection;
-import net.minecraft.tags.TagContainer;
+import net.minecraft.tags.TagKey;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -253,19 +252,20 @@ public final class SerializableDataTypes {
 	public static final SerializableDataType<List<MobEffectInstance>> STATUS_EFFECT_INSTANCES =
 			SerializableDataType.list(STATUS_EFFECT_INSTANCE);
 
-	public static final SerializableDataType<Tag<Item>> ITEM_TAG = SerializableDataType.tag(Registry.ITEM_REGISTRY);
+	public static final SerializableDataType<TagKey<Item>> ITEM_TAG = SerializableDataType.tag(Registry.ITEM_REGISTRY);
 
-	public static final SerializableDataType<Tag<Fluid>> FLUID_TAG = SerializableDataType.tag(Registry.FLUID_REGISTRY);
+	public static final SerializableDataType<TagKey<Fluid>> FLUID_TAG = SerializableDataType.tag(Registry.FLUID_REGISTRY);
 
-	public static final SerializableDataType<Tag<Block>> BLOCK_TAG = SerializableDataType.tag(Registry.BLOCK_REGISTRY);
+	public static final SerializableDataType<TagKey<Block>> BLOCK_TAG = SerializableDataType.tag(Registry.BLOCK_REGISTRY);
 
-	public static final SerializableDataType<Tag<EntityType<?>>> ENTITY_TAG = SerializableDataType.tag(Registry.ENTITY_TYPE_REGISTRY);
+	public static final SerializableDataType<TagKey<EntityType<?>>> ENTITY_TAG = SerializableDataType.tag(Registry.ENTITY_TYPE_REGISTRY);
 
-	public static final SerializableDataType<List<Item>> INGREDIENT_ENTRY = new SerializableDataType<>(ClassUtil.castClass(List.class), RecordCodecBuilder.create(instance -> instance.group(
+	/*public static final SerializableDataType<HolderSet<Item>> INGREDIENT_ENTRY = new SerializableDataType<>(ClassUtil.castClass(List.class), RecordCodecBuilder.create(instance -> instance.group(
 			CalioCodecHelper.optionalField(ITEM, "item").forGetter(x -> x.size() == 1 ? Optional.of(x.get(0)) : Optional.empty()),
 			CalioCodecHelper.optionalField(ITEM_TAG, "tag").forGetter(items -> {
 				if (items.size() == 1)
 					return Optional.empty();
+				Registry.ITEM.getTagOrEmpty(items).forEach();
 				TagContainer tagManager = Calio.getTagManager();
 				TagCollection<Item> tagGroup = tagManager.getOrEmpty(Registry.ITEM_REGISTRY);
 				Collection<ResourceLocation> possibleTags = tagGroup.getMatchingTags(items.get(0));
@@ -292,7 +292,7 @@ public final class SerializableDataTypes {
 				itemLists.forEach(itemList -> itemList.forEach(item -> items.add(new ItemStack(item))));
 				return Ingredient.of(items.stream());
 			},
-			Ingredient::toJson);
+			Ingredient::toJson);*/
 
 	// The regular vanilla Minecraft ingredient.
 	public static final SerializableDataType<Ingredient> VANILLA_INGREDIENT = new SerializableDataType<>(
@@ -445,7 +445,7 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<List<GameEvent>> GAME_EVENTS = SerializableDataType.list(GAME_EVENT);
 
-	public static final SerializableDataType<Tag<GameEvent>> GAME_EVENT_TAG = SerializableDataType.tag(Registry.GAME_EVENT_REGISTRY);
+	public static final SerializableDataType<TagKey<GameEvent>> GAME_EVENT_TAG = SerializableDataType.tag(Registry.GAME_EVENT_REGISTRY);
 
 	public static final SerializableDataType<Fluid> FLUID = SerializableDataType.registry(Fluid.class, Registry.FLUID);
 

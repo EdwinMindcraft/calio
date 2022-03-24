@@ -14,7 +14,6 @@ import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.FilterableWeightedList;
 import io.github.apace100.calio.SerializationHelper;
-import io.github.apace100.calio.util.IdentifiedTag;
 import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.api.network.CalioCodecHelper;
 import io.github.edwinmindcraft.calio.api.network.EnumValueCodec;
@@ -23,6 +22,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.Tag;
+import net.minecraft.tags.TagKey;
 import net.minecraftforge.registries.ForgeRegistryEntry;
 import net.minecraftforge.registries.IForgeRegistry;
 import org.jetbrains.annotations.NotNull;
@@ -129,14 +129,10 @@ public class SerializableDataType<T> implements Codec<T> {
 						base.write != null ? (t) -> base.write(toFunction.apply(t)) : null));
 	}
 
-	public static <T> SerializableDataType<Tag<T>> tag(ResourceKey<? extends Registry<T>> registryKey) {
+	public static <T> SerializableDataType<TagKey<T>> tag(ResourceKey<? extends Registry<T>> registryKey) {
 		return SerializableDataType.wrap(ClassUtil.castClass(Tag.class), SerializableDataTypes.IDENTIFIER,
-				item -> {
-					if (item instanceof Tag.Named<T> named)
-						return named.getName();
-					return Calio.getTagManager().getIdOrThrow(registryKey, item, () -> new JsonSyntaxException("Unknown tag"));
-				},
-				id -> new IdentifiedTag<>(registryKey, id));
+				TagKey::location,
+				id -> TagKey.create(registryKey, id));
 	}
 
 	public static <T extends Enum<T>> SerializableDataType<EnumSet<T>> enumSet(Class<T> enumClass, SerializableDataType<T> enumDataType) {

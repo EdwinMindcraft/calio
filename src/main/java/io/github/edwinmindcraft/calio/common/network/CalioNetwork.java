@@ -2,16 +2,10 @@ package io.github.edwinmindcraft.calio.common.network;
 
 import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.common.network.packet.*;
-import io.github.edwinmindcraft.calio.common.registry.CalioDynamicRegistryManager;
 import net.minecraftforge.network.HandshakeHandler;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
-import net.minecraftforge.server.ServerLifecycleHooks;
-import org.apache.commons.lang3.tuple.Pair;
-
-import java.util.Collections;
-import java.util.List;
 
 public class CalioNetwork {
 	public static final String NETWORK_VERSION = "1.0";
@@ -29,7 +23,7 @@ public class CalioNetwork {
 				.decoder(S2CLoginDynamicRegistriesPacket::decode).encoder(S2CLoginDynamicRegistriesPacket::encode)
 				.consumer(S2CLoginDynamicRegistriesPacket::handle)
 				.loginIndex(S2CLoginDynamicRegistriesPacket::getLoginIndex, S2CLoginDynamicRegistriesPacket::setLoginIndex)
-				.buildLoginPacketList(isLocal -> List.of(Pair.of("S2CLoginDynamicRegistriesPacket", new S2CLoginDynamicRegistriesPacket((CalioDynamicRegistryManager) CalioAPI.getDynamicRegistries(ServerLifecycleHooks.getCurrentServer())))))
+				.buildLoginPacketList(S2CLoginDynamicRegistriesPacket::createLoginPacket)
 				.add();
 		//Play
 		CHANNEL.messageBuilder(S2CDynamicRegistriesPacket.class, index++, NetworkDirection.PLAY_TO_CLIENT)

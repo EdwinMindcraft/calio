@@ -3,11 +3,13 @@ package io.github.apace100.calio;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
+import net.minecraft.core.Registry;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.tags.Tag;
+import net.minecraft.tags.TagKey;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -21,13 +23,13 @@ import java.util.function.Function;
 
 public class SerializationHelper {
 
-	public static Tag<Fluid> getFluidTagFromId(ResourceLocation id) {
-		return FluidTags.getAllTags().getTag(id);
+	public static TagKey<Fluid> getFluidTagFromId(ResourceLocation id) {
+		return ForgeRegistries.FLUIDS.tags().createTagKey(id);
 	}
 
 	//TODO Check if this is enough
-	public static Tag<Block> getBlockTagFromId(ResourceLocation id) {
-		return BlockTags.getAllTags().getTag(id);
+	public static TagKey<Block> getBlockTagFromId(ResourceLocation id) {
+		return ForgeRegistries.BLOCKS.tags().createTagKey(id);
 	}
 
 	// Use SerializableDataTypes.ATTRIBUTE_MODIFIER instead

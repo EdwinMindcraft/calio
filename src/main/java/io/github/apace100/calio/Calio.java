@@ -1,21 +1,15 @@
 package io.github.apace100.calio;
 
 import io.github.edwinmindcraft.calio.api.CalioAPI;
-import io.github.apace100.calio.util.ClientTagManagerGetter;
-import io.github.apace100.calio.util.ServerTagManagerGetter;
-import io.github.apace100.calio.util.TagManagerGetter;
 import io.github.edwinmindcraft.calio.common.CalioCommon;
 import io.github.edwinmindcraft.calio.common.CalioConfig;
-import io.github.edwinmindcraft.calio.common.network.CalioNetwork;
 import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.core.Registry;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.Tag;
-import net.minecraft.tags.TagContainer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 
@@ -32,13 +26,13 @@ public class Calio {
 
 	public static final ResourceLocation PACKET_SHARE_ITEM = new ResourceLocation("calio", "share_item");
 
-	static TagManagerGetter tagManagerGetter;
+	//static TagManagerGetter tagManagerGetter;
 
 	public Calio() {
 		CalioAPI.LOGGER.info("Calio {} initializing...", ModLoadingContext.get().getActiveContainer().getModInfo().getVersion());
 		CalioCommon.initialize();
 		CriteriaTriggers.register(CodeTriggerCriterion.INSTANCE);
-		tagManagerGetter = DistExecutor.safeRunForDist(() -> ClientTagManagerGetter::new, () -> ServerTagManagerGetter::new);
+		//tagManagerGetter = DistExecutor.safeRunForDist(() -> ClientTagManagerGetter::new, () -> ServerTagManagerGetter::new);
 	}
 
 	public static boolean hasNonItalicName(ItemStack stack) {
@@ -77,7 +71,7 @@ public class Calio {
 		}
 	}
 
-	public static TagContainer getTagManager() {
+	/*public static TagContainer getTagManager() {
 		return tagManagerGetter.get();
 	}
 
@@ -104,5 +98,5 @@ public class Calio {
 		} catch (Exception e) {
 			return false;
 		}
-	}
+	}*/
 }

@@ -40,7 +40,7 @@ public class CalioAPI {
 			return null;
 		if (ServerLifecycleHooks.getCurrentServer() != null)
 			return ServerLifecycleHooks.getCurrentServer().registryAccess();
-		return RegistryAccess.builtin();
+		return RegistryAccess.BUILTIN.get();
 	}
 
 	public static ICalioDynamicRegistryManager getDynamicRegistries(@Nullable MinecraftServer server) {

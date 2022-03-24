@@ -3,6 +3,7 @@ package io.github.edwinmindcraft.calio.api.registry;
 import com.mojang.serialization.Codec;
 import io.github.apace100.calio.data.MultiJsonDataLoader;
 import io.github.edwinmindcraft.calio.api.event.DynamicRegistrationEvent;
+import net.minecraft.core.DefaultedRegistry;
 import net.minecraft.core.Registry;
 import net.minecraft.core.WritableRegistry;
 import net.minecraft.resources.ResourceKey;
@@ -14,10 +15,8 @@ import org.apache.commons.lang3.Validate;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -33,7 +32,7 @@ public interface ICalioDynamicRegistryManager extends PreparableReloadListener {
 	 */
 	default <T> void addVanilla(@NotNull ResourceKey<Registry<T>> key, @NotNull Supplier<Registry<T>> builtin, Codec<T> codec) {
 		Validate.notNull(builtin, "Registry " + key.location() + " has no builtin, use add instead.");
-		this.add(key, consumer -> builtin.get().entrySet().forEach(entry -> consumer.accept(entry.getKey(), entry.getValue())), codec);
+		this.add(key, consumer -> builtin.get().entrySet().forEach(entry -> consumer.accept(entry.getKey(), entry.getValue())), codec, () -> builtin.get() instanceof DefaultedRegistry<T> def ? def.getDefaultKey() : null);
 	}
 
 	/**
@@ -47,8 +46,20 @@ public interface ICalioDynamicRegistryManager extends PreparableReloadListener {
 	 */
 	default <T extends IForgeRegistryEntry<T>> void addForge(@NotNull ResourceKey<Registry<T>> key, @NotNull Supplier<IForgeRegistry<T>> builtin, Codec<T> codec) {
 		Validate.notNull(builtin, "Registry " + key.location() + " has no builtin, use add instead.");
-		this.add(key, consumer -> builtin.get().getEntries().forEach(entry -> consumer.accept(entry.getKey(), entry.getValue())), codec);
+		this.add(key, consumer -> builtin.get().getEntries().forEach(entry -> consumer.accept(entry.getKey(), entry.getValue())), codec, () -> builtin.get().getDefaultKey());
 	}
+
+	/**
+	 * Creates a new dynamic registry for the given key and copies values given
+	 * to the {@link BiConsumer} if it exists.
+	 *
+	 * @param key          The key of this dynamic registry.
+	 * @param builtin      If this field is not null, objects supplied to the {@link BiConsumer}
+	 *                     will be copied into the newly created dynamic registry.
+	 * @param codec        The codec used to send the data from the client to the server.
+	 * @param defaultValue The default value of the instantiated registries.
+	 */
+	<T> void add(@NotNull ResourceKey<Registry<T>> key, @Nullable Consumer<BiConsumer<ResourceKey<T>, T>> builtin, Codec<T> codec, @Nullable Supplier<ResourceLocation> defaultValue);
 
 	/**
 	 * Creates a new dynamic registry for the given key and copies values given
@@ -59,7 +70,9 @@ public interface ICalioDynamicRegistryManager extends PreparableReloadListener {
 	 *                will be copied into the newly created dynamic registry.
 	 * @param codec   The codec used to send the data from the client to the server.
 	 */
-	<T> void add(@NotNull ResourceKey<Registry<T>> key, @Nullable Consumer<BiConsumer<ResourceKey<T>, T>> builtin, Codec<T> codec);
+	default <T> void add(@NotNull ResourceKey<Registry<T>> key, @Nullable Consumer<BiConsumer<ResourceKey<T>, T>> builtin, Codec<T> codec) {
+		this.add(key, builtin, codec, null);
+	}
 
 	/**
 	 * Creates a new dynamic registry for the given key.
@@ -83,10 +96,10 @@ public interface ICalioDynamicRegistryManager extends PreparableReloadListener {
 	/**
 	 * Adds a validation step to the created entries.
 	 *
-	 * @param key       The key of the registry to validate entries for.
-	 * @param validator The validator used.
+	 * @param key        The key of the registry to validate entries for.
+	 * @param validator  The validator used.
 	 * @param eventClass The class used forge the {@link DynamicRegistrationEvent}. If null, the event won't fire.
-	 * @param after     The registries that are required to exist before this validator runs.
+	 * @param after      The registries that are required to exist before this validator runs.
 	 */
 	<T> void addValidation(ResourceKey<Registry<T>> key, DynamicEntryValidator<T> validator, @Nullable Class<T> eventClass, @NotNull ResourceKey<?>... after);
 

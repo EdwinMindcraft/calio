@@ -8,11 +8,11 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.RegistryBuilder;
 
 public class CalioRegisters {
-	public static final DeferredRegister<PlayerAbility> PLAYER_ABILITIES = DeferredRegister.create(PlayerAbility.class, CalioAPI.MODID);
+	public static final DeferredRegister<PlayerAbility> PLAYER_ABILITIES = DeferredRegister.create(CalioAPI.resource("player_ability"), CalioAPI.MODID);
 
 	public static void register(IEventBus bus) {
 		//Note for myself: Always call makeRegistry before register.
-		PlayerAbilities.REGISTRY = PLAYER_ABILITIES.makeRegistry("player_abilities", () -> new RegistryBuilder<PlayerAbility>().disableSaving());
+		PlayerAbilities.REGISTRY = PLAYER_ABILITIES.makeRegistry(PlayerAbility.class, () -> new RegistryBuilder<PlayerAbility>().disableSaving());
 
 		PLAYER_ABILITIES.register(bus);
 	}

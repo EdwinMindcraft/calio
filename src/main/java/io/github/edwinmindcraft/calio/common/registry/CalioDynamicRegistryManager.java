@@ -18,10 +18,7 @@ import io.github.edwinmindcraft.calio.api.registry.DynamicEntryValidator;
 import io.github.edwinmindcraft.calio.api.registry.ICalioDynamicRegistryManager;
 import io.github.edwinmindcraft.calio.client.util.ClientHelper;
 import io.github.edwinmindcraft.calio.common.CalioConfig;
-import net.minecraft.core.MappedRegistry;
-import net.minecraft.core.Registry;
-import net.minecraft.core.RegistryAccess;
-import net.minecraft.core.WritableRegistry;
+import net.minecraft.core.*;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -34,6 +31,7 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.registries.IForgeRegistryEntry;
 import org.apache.commons.lang3.Validate;
+import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -45,6 +43,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -56,6 +55,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 
 	private static final Map<RegistryAccess, CalioDynamicRegistryManager> INSTANCES = new ConcurrentHashMap<>();
 	private static CalioDynamicRegistryManager clientInstance = null;
+	private static CalioDynamicRegistryManager serverInstance = null;
 	private boolean lock;
 	private final Map<ResourceKey<?>, MappedRegistry<?>> registries;
 	private final Map<ResourceKey<?>, RegistryDefinition<?>> definitions;
@@ -128,10 +128,15 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		if (!CalioConfig.COMMON.logging.get())
 			return;
 		CalioAPI.LOGGER.info("Calio dynamic registry dump:");
-		this.registries.values().forEach(reg -> {
-			CalioAPI.LOGGER.info("{}: {} entries", reg.key().location(), reg.keySet().size());
-			reg.entrySet().forEach(entry -> CalioAPI.LOGGER.info("  {}: {}", entry.getKey().location(), entry.getValue()));
-		});
+		this.registries.values().forEach(CalioDynamicRegistryManager::dumpRegistry);
+	}
+
+	private static <T> void dumpRegistry(Registry<T> reg) {
+		CalioAPI.LOGGER.info("{}: {} entries", reg.key().location(), reg.keySet().size());
+		for (ResourceLocation resourceLocation : reg.keySet()) {
+			Optional<Holder<T>> holder = reg.getHolder(ResourceKey.create(reg.key(), resourceLocation)).filter(Holder::isBound);
+			CalioAPI.LOGGER.info("  {}: {}", resourceLocation, holder.map(x -> x.value().toString()).orElse("Missing"));
+		}
 	}
 
 	private <T> void validate(ResourceKey<Registry<T>> key, @Nullable Validator<T> validator, Map<ResourceLocation, T> entries) {
@@ -161,12 +166,15 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		return clientInstance;
 	}
 
-	public static CalioDynamicRegistryManager addInstance(RegistryAccess server) {
-		return INSTANCES.computeIfAbsent(server, s -> new CalioDynamicRegistryManager());
+	private static CalioDynamicRegistryManager addInstance(RegistryAccess server) {
+		if (serverInstance == null)
+			serverInstance = new CalioDynamicRegistryManager();
+		return serverInstance;//INSTANCES.computeIfAbsent(server, s -> new CalioDynamicRegistryManager());
 	}
 
 	public static void removeInstance(RegistryAccess server) {
-		INSTANCES.remove(server);
+		//INSTANCES.remove(server);
+		serverInstance = null;
 	}
 
 	@OnlyIn(Dist.CLIENT)
@@ -204,11 +212,11 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	}
 
 	@Override
-	public <T> void add(@NotNull ResourceKey<Registry<T>> key, @Nullable Consumer<BiConsumer<ResourceKey<T>, T>> builtin, Codec<T> codec) {
+	public <T> void add(@NotNull ResourceKey<Registry<T>> key, @Nullable Consumer<BiConsumer<ResourceKey<T>, T>> builtin, Codec<T> codec, @Nullable Supplier<ResourceLocation> defaultValue) {
 		Validate.isTrue(!this.lock, "Cannot add registries after the dynamic registry manager has initialized");
 		if (this.definitions.containsKey(key))
 			throw new IllegalArgumentException("Registry for key " + key + " is already added.");
-		RegistryDefinition<T> value = new RegistryDefinition<>(builtin, codec);
+		RegistryDefinition<T> value = new RegistryDefinition<>(builtin, codec, defaultValue);
 		this.definitions.put(key, value);
 		this.reset(key);
 		this.registries.computeIfAbsent(key, k -> value.newRegistry(key));
@@ -269,9 +277,14 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	private <T> void writeRegistry(ResourceKey<?> key, Registry<T> registry, FriendlyByteBuf buffer) {
 		Codec<T> codec = (Codec<T>) this.definitions.get(key).codec();
 		buffer.writeResourceLocation(key.location());
-		buffer.writeVarInt(registry.entrySet().size());
-		registry.entrySet().forEach(entry -> {
-			buffer.writeResourceLocation(entry.getKey().location());
+		List<Pair<ResourceLocation, T>> entries = new ArrayList<>(registry.size());
+		for (ResourceLocation entry : registry.keySet()) { //If holders are missing, using entry would prevent login if a power was missing.
+			Optional<Holder<T>> holder = registry.getHolder(ResourceKey.create(registry.key(), entry)).filter(Holder::isBound);
+			holder.ifPresent(tHolder -> entries.add(Pair.of(entry, tHolder.value())));
+		}
+		buffer.writeVarInt(entries.size());
+		entries.forEach(entry -> {
+			buffer.writeResourceLocation(entry.getKey());
 			buffer.writeWithCodec(codec, entry.getValue());
 		});
 	}
@@ -351,10 +364,14 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		}
 	}
 
-	private record RegistryDefinition<T>(Consumer<BiConsumer<ResourceKey<T>, T>> builtin, Codec<T> codec) {
+	private record RegistryDefinition<T>(Consumer<BiConsumer<ResourceKey<T>, T>> builtin, Codec<T> codec, @Nullable Supplier<ResourceLocation> defaultValue) {
 
 		public MappedRegistry<T> newRegistry(ResourceKey<Registry<T>> key) {
-			MappedRegistry<T> registry = new MappedRegistry<>(key, Lifecycle.experimental());
+			//As this is dynamic, there is no certainty as to the content, so we don't have a backing IdentityHashMap.
+			ResourceLocation defaultKey = this.defaultValue() != null ? this.defaultValue().get() : null;
+			MappedRegistry<T> registry = defaultKey == null ?
+					new MappedRegistry<>(key, Lifecycle.experimental(), null) :
+					new DefaultedRegistry<>(defaultKey.toString(), key, Lifecycle.experimental(), null);
 			if (this.builtin() != null)
 				this.builtin().accept((rl, value) -> registry.register(rl, value, Lifecycle.experimental()));
 			return registry;
