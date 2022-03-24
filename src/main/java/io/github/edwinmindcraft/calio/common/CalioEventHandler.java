@@ -40,7 +40,7 @@ public class CalioEventHandler {
 
 	@SubscribeEvent
 	public static void onServerReload(AddReloadListenerEvent event) {
-		CalioDynamicRegistryManager instance = CalioDynamicRegistryManager.getInstance(event.getDataPackRegistries().tagManager.registryAccess);
+		CalioDynamicRegistryManager instance = CalioDynamicRegistryManager.getInstance(event.getServerResources().tagManager.registryAccess);
 		event.addListener(instance);
 		OrderedResourceListeners.orderedList().forEach(event::addListener);
 	}

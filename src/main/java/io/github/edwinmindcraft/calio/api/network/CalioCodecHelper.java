@@ -1,24 +1,24 @@
 package io.github.edwinmindcraft.calio.api.network;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.gson.*;
 import com.mojang.datafixers.util.Either;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.math.Vector3f;
-import com.mojang.serialization.Codec;
-import com.mojang.serialization.DynamicOps;
-import com.mojang.serialization.JsonOps;
-import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.*;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.apace100.calio.FilterableWeightedList;
 import io.github.apace100.calio.data.SerializableDataTypes;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Registry;
+import io.github.edwinmindcraft.calio.api.CalioAPI;
+import net.minecraft.core.*;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.registries.IForgeRegistry;
+import net.minecraftforge.registries.IForgeRegistryEntry;
 
 import java.lang.reflect.Type;
 import java.util.*;
@@ -108,6 +108,33 @@ public class CalioCodecHelper {
 		return CalioCodecHelper.listOf(source).xmap(HashSet::new, ArrayList::new);
 	}
 
+	public static <T> Codec<Holder<T>> holder(Supplier<Registry<T>> access, Codec<ResourceLocation> reference, Codec<T> direct) {
+		return new HolderCodec<>(direct, reference, access);
+	}
+
+	public static <T> Codec<HolderSet<T>> holderSet(Supplier<Registry<T>> access, Codec<TagKey<T>> tag, Codec<Holder<T>> holder) {
+		return new HolderSetCodec<>(access, holder, tag);
+	}
+
+	public static <T> CodecSet<T> codecSet(Supplier<Registry<T>> access, ResourceKey<Registry<T>> key, Codec<ResourceLocation> reference, Codec<T> direct) {
+		Codec<Holder<T>> holder = holder(access, reference, direct);
+		Codec<Holder<T>> holderRef = reference.flatComapMap(id -> access.get().getOrCreateHolder(ResourceKey.create(key, id)), h -> h.unwrap().map(x -> DataResult.success(x.location()), t -> access.get().getResourceKey(t).map(ResourceKey::location).map(DataResult::success).orElseGet(() -> DataResult.error("Key not in registry."))));
+		Codec<TagKey<T>> directTag = reference.xmap(location -> TagKey.create(key, location), TagKey::location);
+		//FIXME Add support for * operator.
+		Codec<TagKey<T>> hashedTag = Codec.STRING.comapFlatMap(string -> string.startsWith("#") ?
+				ResourceLocation.read(string.substring(1)).map(loc -> TagKey.create(key, loc)) :
+				DataResult.error("Not a tag id"), tag -> "#" + tag.location());
+		Codec<HolderSet<T>> directSet = holderSet(access, directTag, holder);
+		Codec<HolderSet<T>> hashedSet = holderSet(access, hashedTag, holder);
+		Codec<List<HolderSet<T>>> set = listOf(hashedSet);
+		return new CodecSet<>(holder, holderRef, directTag, hashedTag, directSet, hashedSet, set);
+	}
+
+	public static <T> CodecSet<T> forDynamicRegistry(ResourceKey<Registry<T>> key, Codec<ResourceLocation> reference, Codec<T> direct) {
+		Supplier<Registry<T>> supplier = () -> CalioAPI.getDynamicRegistries().get(key);
+		return codecSet(supplier, key, reference, direct);
+	}
+
 	public static <A> PropagatingOptionalFieldCodec<A> optionalField(Codec<A> codec, String name) {
 		return new PropagatingOptionalFieldCodec<>(name, codec);
 	}
@@ -118,6 +145,11 @@ public class CalioCodecHelper {
 
 	public static <A> PropagatingDefaultedOptionalFieldCodec<A> optionalField(Codec<A> codec, String name, Supplier<A> defaultValue) {
 		return new PropagatingDefaultedOptionalFieldCodec<>(name, codec, defaultValue);
+	}
+
+	public static <A extends IForgeRegistryEntry<A>> PropagatingDefaultedOptionalFieldCodec<Holder<A>> registryDefaultedField(Codec<Holder<A>> codec, String name, ResourceKey<Registry<A>> registry, Supplier<IForgeRegistry<A>> builtin) {
+		Supplier<Holder<A>> supplier = () -> CalioAPI.getDynamicRegistries().get(registry) instanceof DefaultedRegistry<A> def ? def.getHolderOrThrow(ResourceKey.create(registry, def.getDefaultKey())) : builtin.get().getHolder(builtin.get().getDefaultKey()).orElseThrow();
+		return optionalField(codec, name, supplier);
 	}
 
 	public static final Codec<Component> COMPONENT_CODEC = new IContextAwareCodec<>() {
@@ -182,7 +214,7 @@ public class CalioCodecHelper {
 		return new CodecJsonAdapter<>(input);
 	}
 
-	public static boolean isDataContext(DynamicOps<?>ops) {
+	public static boolean isDataContext(DynamicOps<?> ops) {
 		return ops instanceof JsonOps && !ops.compressMaps();
 	}
 

@@ -9,15 +9,11 @@ import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleType;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.BlockTags;
-import net.minecraft.tags.FluidTags;
-import net.minecraft.tags.Tag;
+import net.minecraft.tags.TagKey;
 import net.minecraft.util.GsonHelper;
-import net.minecraft.world.Container;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
-import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -28,13 +24,13 @@ import java.util.function.Function;
 
 public class SerializationHelper {
 
-	public static Tag<Fluid> getFluidTagFromId(ResourceLocation id) {
-		return FluidTags.getAllTags().getTag(id);
+	public static TagKey<Fluid> getFluidTagFromId(ResourceLocation id) {
+		return ForgeRegistries.FLUIDS.tags().createTagKey(id);
 	}
 
 	//TODO Check if this is enough
-	public static Tag<Block> getBlockTagFromId(ResourceLocation id) {
-		return BlockTags.getAllTags().getTag(id);
+	public static TagKey<Block> getBlockTagFromId(ResourceLocation id) {
+		return ForgeRegistries.BLOCKS.tags().createTagKey(id);
 	}
 
 	// Use SerializableDataTypes.ATTRIBUTE_MODIFIER instead
@@ -143,7 +139,6 @@ public class SerializationHelper {
 	public static <T extends ParticleOptions> T loadParticle(ParticleType<T> type, String parameters) {
 		//There is no way around deserializers right now.
 		ParticleOptions.Deserializer<T> factory = type.getDeserializer();
-		ParticleOptions effect = null;
 		try {
 			return factory.fromCommand(type, new StringReader(" " + parameters));
 		} catch (CommandSyntaxException e) {
