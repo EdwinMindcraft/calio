@@ -131,10 +131,15 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 	@Override
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public <T> RecordBuilder<T> encode(Instance input, DynamicOps<T> ops, RecordBuilder<T> prefix) {
-		input.data.forEach((key, value) -> {
+		for (Map.Entry<String, Object> data : input.data.entrySet()) {
+			String key = data.getKey();
+			Object value = data.getValue();
 			Entry entry = this.dataFields.get(key);
-			prefix.add(key, entry.dataType.encodeStart(ops, value));
-		});
+			if (value != null)
+				prefix.add(key, entry.dataType.encodeStart(ops, value));
+			else if (!entry.hasDefault())
+				prefix.add(key, DataResult.error("Missing required field: " + key));
+		}
 		return prefix;
 	}
 
