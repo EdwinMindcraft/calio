@@ -7,6 +7,9 @@ import com.mojang.serialization.*;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import org.apache.commons.lang3.Validate;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -98,6 +101,12 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 		return instance;
 	}
 
+	public SerializableData copy() {
+		SerializableData copy = new SerializableData();
+		copy.dataFields.putAll(this.dataFields);
+		return copy;
+	}
+
 	@Override
 	public <T> Stream<T> keys(DynamicOps<T> ops) {
 		return Stream.empty();
@@ -158,7 +167,7 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 			this.hasDefaultFunction = false;
 		}
 
-		public Entry(SerializableDataType<T> dataType, T defaultValue) {
+		public Entry(SerializableDataType<T> dataType, @Nullable T defaultValue) {
 			this.dataType = dataType;
 			this.defaultValue = defaultValue;
 			this.defaultFunction = null;
@@ -166,7 +175,7 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 			this.hasDefaultFunction = false;
 		}
 
-		public Entry(SerializableDataType<T> dataType, Function<Instance, T> defaultFunction) {
+		public Entry(SerializableDataType<T> dataType, @NotNull Function<Instance, T> defaultFunction) {
 			this.dataType = dataType;
 			this.defaultValue = null;
 			this.defaultFunction = defaultFunction;
@@ -180,6 +189,7 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 
 		public T getDefault(Instance dataInstance) {
 			if (this.hasDefaultFunction) {
+				Validate.notNull(this.defaultFunction, "Serializable data field was marked has having a default function, but had none.");
 				return this.defaultFunction.apply(dataInstance);
 			} else if (this.hasDefault) {
 				return this.defaultValue;
@@ -207,7 +217,7 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 		}
 
 		public <T> void ifPresent(String name, Consumer<T> consumer) {
-			if(this.isPresent(name))
+			if (this.isPresent(name))
 				consumer.accept(this.get(name));
 		}
 
@@ -215,8 +225,9 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 			this.data.put(name, value);
 		}
 
+		@SuppressWarnings("unchecked")
 		public <T> T get(String name) {
-			if(!this.data.containsKey(name)) {
+			if (!this.data.containsKey(name)) {
 				throw new RuntimeException("Tried to get field \"" + name + "\" from data, which did not exist.");
 			}
 			return (T) this.data.get(name);

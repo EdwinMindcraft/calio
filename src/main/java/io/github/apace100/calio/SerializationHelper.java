@@ -3,18 +3,25 @@ package io.github.apace100.calio;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
+import com.mojang.brigadier.StringReader;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import net.minecraft.core.particles.ParticleOptions;
+import net.minecraft.core.particles.ParticleType;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.tags.Tag;
 import net.minecraft.util.GsonHelper;
+import net.minecraft.world.Container;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraftforge.registries.ForgeRegistries;
+import org.apache.commons.lang3.Validate;
 
 import java.util.HashMap;
 import java.util.function.Function;
@@ -90,7 +97,9 @@ public class SerializationHelper {
 
 	public static JsonElement writeStatusEffect(MobEffectInstance instance) {
 		JsonObject object = new JsonObject();
-		object.addProperty("effect", instance.getEffect().getRegistryName().toString());
+		ResourceLocation registryName = instance.getEffect().getRegistryName();
+		Validate.notNull(registryName, "Unregistered mob effect: %s", instance.getEffect());
+		object.addProperty("effect", registryName.toString());
 		object.addProperty("duration", instance.getDuration());
 		object.addProperty("amplifier", instance.getAmplifier());
 		object.addProperty("is_ambient", instance.isAmbient());
@@ -106,11 +115,15 @@ public class SerializationHelper {
 		boolean ambient = buf.readBoolean();
 		boolean showParticles = buf.readBoolean();
 		boolean showIcon = buf.readBoolean();
-		return new MobEffectInstance(ForgeRegistries.MOB_EFFECTS.getValue(effect), duration, amplifier, ambient, showParticles, showIcon);
+		MobEffect mobEffect = ForgeRegistries.MOB_EFFECTS.getValue(effect);
+		Validate.notNull(mobEffect, "Missing mob effect: %s", effect);
+		return new MobEffectInstance(mobEffect, duration, amplifier, ambient, showParticles, showIcon);
 	}
 
 	public static void writeStatusEffect(FriendlyByteBuf buf, MobEffectInstance statusEffectInstance) {
-		buf.writeResourceLocation(statusEffectInstance.getEffect().getRegistryName());
+		ResourceLocation registryName = statusEffectInstance.getEffect().getRegistryName();
+		Validate.notNull(registryName, "Unregistered mob effect: %s".formatted(statusEffectInstance.getEffect()));
+		buf.writeResourceLocation(registryName);
 		buf.writeInt(statusEffectInstance.getDuration());
 		buf.writeInt(statusEffectInstance.getAmplifier());
 		buf.writeBoolean(statusEffectInstance.isAmbient());
@@ -124,5 +137,17 @@ public class SerializationHelper {
 			map.put(enumToString.apply(enumConstant), enumConstant);
 		}
 		return map;
+	}
+
+	@SuppressWarnings("deprecation")
+	public static <T extends ParticleOptions> T loadParticle(ParticleType<T> type, String parameters) {
+		//There is no way around deserializers right now.
+		ParticleOptions.Deserializer<T> factory = type.getDeserializer();
+		ParticleOptions effect = null;
+		try {
+			return factory.fromCommand(type, new StringReader(" " + parameters));
+		} catch (CommandSyntaxException e) {
+			throw new RuntimeException(e);
+		}
 	}
 }

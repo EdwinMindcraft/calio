@@ -1,6 +1,7 @@
 package io.github.apace100.calio.registry;
 
 import com.google.gson.*;
+import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.data.MultiJsonDataLoader;
 import io.github.apace100.calio.data.SerializableData;
 import io.github.apace100.calio.data.SerializableDataType;
@@ -22,7 +23,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class DataObjectRegistry<T extends DataObject<T>> {
 
@@ -40,7 +43,9 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 	private final HashMap<DataObjectFactory<T>, ResourceLocation> factoryToId = new HashMap<>();
 
 	private SerializableDataType<T> dataType;
+    private SerializableDataType<List<T>> listDataType;
 	private SerializableDataType<T> registryDataType;
+    private SerializableDataType<Supplier<T>> lazyDataType;
 
 	private final Function<JsonElement, JsonElement> jsonPreprocessor;
 
@@ -94,15 +99,23 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 		factory.getData().write(buf, data);
 	}
 
-	public void receive(FriendlyByteBuf buf) {
-		this.clear();
-		int entryCount = buf.readInt();
-		for (int i = 0; i < entryCount; i++) {
-			ResourceLocation entryId = buf.readResourceLocation();
-			T entry = this.receiveDataObject(buf);
-			this.register(entryId, entry);
-		}
-	}
+    public void receive(FriendlyByteBuf buf) {
+        this.receive(buf, Runnable::run);
+    }
+
+    public void receive(FriendlyByteBuf buf, Consumer<Runnable> scheduler) {
+        int entryCount = buf.readInt();
+        HashMap<ResourceLocation, T> entries = new HashMap<>(entryCount);
+        for(int i = 0; i < entryCount; i++) {
+            ResourceLocation entryId = buf.readResourceLocation();
+            T entry = this.receiveDataObject(buf);
+            entries.put(entryId, entry);
+        }
+        scheduler.accept(() -> {
+            this.clear();
+            entries.forEach(this::register);
+        });
+    }
 
 	public T receiveDataObject(FriendlyByteBuf buf) {
 		ResourceLocation factoryId = buf.readResourceLocation();
@@ -176,16 +189,34 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 		return this.dataType;
 	}
 
-	public SerializableDataType<T> registryDataType() {
-		if (this.registryDataType == null) {
-			this.registryDataType = this.createRegistryDataType();
-		}
-		return this.registryDataType;
-	}
+    public SerializableDataType<List<T>> listDataType() {
+        if(this.dataType == null)
+            this.dataType = this.createDataType();
+        if(this.listDataType == null)
+            this.listDataType = SerializableDataType.list(this.dataType);
+        return this.listDataType;
+    }
 
-	private SerializableDataType<T> createDataType() {
-		return new SerializableDataType<>(this.objectClass, this::writeDataObject, this::receiveDataObject, this::readDataObject);
-	}
+    public SerializableDataType<T> registryDataType() {
+        if(this.registryDataType == null)
+            this.registryDataType = this.createRegistryDataType();
+        return this.registryDataType;
+    }
+
+    public SerializableDataType<Supplier<T>> lazyDataType() {
+        if(this.lazyDataType == null)
+            this.lazyDataType = this.createLazyDataType();
+        return this.lazyDataType;
+    }
+
+    public SerializableDataType<Supplier<T>> createLazyDataType() {
+        return SerializableDataType.wrap(ClassUtil.castClass(Supplier.class),
+            SerializableDataTypes.IDENTIFIER, lazy -> this.getId(lazy.get()), id -> () -> this.get(id));
+    }
+
+    private SerializableDataType<T> createDataType() {
+        return new SerializableDataType<>(this.objectClass, this::writeDataObject, this::receiveDataObject, this::readDataObject);
+    }
 
 	private SerializableDataType<T> createRegistryDataType() {
 		return SerializableDataType.wrap(this.objectClass, SerializableDataTypes.IDENTIFIER, this::getId, this::get);
@@ -216,7 +247,7 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 		}
 
 		@Override
-		protected void apply(Map<ResourceLocation, List<JsonElement>> data, ResourceManager manager, ProfilerFiller profiler) {
+		protected void apply(Map<ResourceLocation, List<JsonElement>> data, @NotNull ResourceManager manager, @NotNull ProfilerFiller profiler) {
 			DataObjectRegistry.this.clear();
 			LOADING_PRIORITIES.clear();
 			data.forEach((id, jel) -> {

@@ -38,9 +38,6 @@ public class CalioNetwork {
 		CHANNEL.messageBuilder(S2CDataObjectRegistryPacket.class, index++, NetworkDirection.PLAY_TO_CLIENT)
 				.decoder(S2CDataObjectRegistryPacket::decode).encoder(S2CDataObjectRegistryPacket::encode)
 				.consumer(S2CDataObjectRegistryPacket::handle).add();
-		CHANNEL.messageBuilder(C2SShareItemPacket.class, index++, NetworkDirection.PLAY_TO_SERVER)
-				.decoder(C2SShareItemPacket::decode).encoder(C2SShareItemPacket::encode)
-				.consumer(C2SShareItemPacket::handle).add();
 		CalioAPI.LOGGER.debug("Registered {} packets", index);
 	}
 }

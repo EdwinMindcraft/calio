@@ -19,6 +19,8 @@ import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 
+import java.util.Objects;
+
 @Mod(CalioAPI.MODID)
 public class Calio {
 
@@ -29,8 +31,6 @@ public class Calio {
 	public static boolean isDebugMode() {
 		return CalioConfig.COMMON.debugMode.get();
 	}
-
-	public static final ResourceLocation PACKET_SHARE_ITEM = new ResourceLocation("calio", "share_item");
 
 	static TagManagerGetter tagManagerGetter;
 
@@ -55,25 +55,22 @@ public class Calio {
 	}
 
 	public static boolean areEntityAttributesAdditional(ItemStack stack) {
-		return stack.hasTag() && stack.getTag().contains(NbtConstants.ADDITIONAL_ATTRIBUTES) && stack.getTag().getBoolean(NbtConstants.ADDITIONAL_ATTRIBUTES);
+		return stack.hasTag() && Objects.requireNonNull(stack.getTag()).contains(NbtConstants.ADDITIONAL_ATTRIBUTES) && stack.getTag().getBoolean(NbtConstants.ADDITIONAL_ATTRIBUTES);
 	}
 
 	/**
 	 * Sets whether the item stack counts the entity attribute modifiers specified in its tag as additional,
 	 * meaning they won't overwrite the equipment's inherent modifiers.
 	 *
-	 * @param stack
-	 * @param additional
+	 * @param stack The {@link ItemStack} to set the status of.
+	 * @param additional The status to set.
 	 */
 	public static void setEntityAttributesAdditional(ItemStack stack, boolean additional) {
 		if (stack != null) {
-			if (additional) {
+			if (additional)
 				stack.getOrCreateTag().putBoolean(NbtConstants.ADDITIONAL_ATTRIBUTES, true);
-			} else {
-				if (stack.hasTag()) {
-					stack.getTag().remove(NbtConstants.ADDITIONAL_ATTRIBUTES);
-				}
-			}
+			else if (stack.hasTag())
+				Objects.requireNonNull(stack.getTag()).remove(NbtConstants.ADDITIONAL_ATTRIBUTES);
 		}
 	}
 

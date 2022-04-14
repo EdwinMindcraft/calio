@@ -15,9 +15,11 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.SerializationHelper;
+import io.github.apace100.calio.util.ArgumentWrapper;
 import io.github.apace100.calio.util.StatusEffectChance;
 import io.github.edwinmindcraft.calio.api.network.CalioCodecHelper;
 import net.minecraft.ResourceLocationException;
+import net.minecraft.commands.arguments.NbtPathArgument;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Registry;
@@ -63,9 +65,11 @@ import net.minecraft.world.level.material.FogType;
 import net.minecraft.world.level.material.Material;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.registries.ForgeRegistries;
+import org.apache.commons.lang3.Validate;
 
 import java.util.*;
 
+@SuppressWarnings("unused")
 public final class SerializableDataTypes {
 
 	public static final SerializableDataType<Integer> INT = new SerializableDataType<>(Integer.class, Codec.INT);
@@ -177,7 +181,7 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<List<ResourceLocation>> IDENTIFIERS = SerializableDataType.list(IDENTIFIER);
 
-	public static final SerializableDataType<Enchantment> ENCHANTMENT = SerializableDataType.registry(Enchantment.class, Registry.ENCHANTMENT);
+	public static final SerializableDataType<Enchantment> ENCHANTMENT = SerializableDataType.registry(Enchantment.class, ForgeRegistries.ENCHANTMENTS);
 
 	public static final SerializableDataType<DamageSource> DAMAGE_SOURCE = SerializableDataType.compound(DamageSource.class, new SerializableData()
 					.add("name", STRING)
@@ -212,7 +216,7 @@ public final class SerializableDataTypes {
 				return inst;
 			});
 
-	public static final SerializableDataType<Attribute> ATTRIBUTE = SerializableDataType.registry(Attribute.class, Registry.ATTRIBUTE);
+	public static final SerializableDataType<Attribute> ATTRIBUTE = SerializableDataType.registry(Attribute.class, ForgeRegistries.ATTRIBUTES);
 
 	public static final SerializableDataType<AttributeModifier.Operation> MODIFIER_OPERATION = SerializableDataType.enumValue(AttributeModifier.Operation.class);
 
@@ -236,9 +240,9 @@ public final class SerializableDataTypes {
 	public static final SerializableDataType<List<AttributeModifier>> ATTRIBUTE_MODIFIERS =
 			SerializableDataType.list(ATTRIBUTE_MODIFIER);
 
-	public static final SerializableDataType<Item> ITEM = SerializableDataType.registry(Item.class, Registry.ITEM);
+	public static final SerializableDataType<Item> ITEM = SerializableDataType.registry(Item.class, ForgeRegistries.ITEMS);
 
-	public static final SerializableDataType<MobEffect> STATUS_EFFECT = SerializableDataType.registry(MobEffect.class, Registry.MOB_EFFECT);
+	public static final SerializableDataType<MobEffect> STATUS_EFFECT = SerializableDataType.registry(MobEffect.class, ForgeRegistries.MOB_EFFECTS);
 
 	public static final SerializableDataType<List<MobEffect>> STATUS_EFFECTS =
 			SerializableDataType.list(STATUS_EFFECT);
@@ -302,7 +306,7 @@ public final class SerializableDataTypes {
 			Ingredient::fromJson,
 			Ingredient::toJson);
 
-	public static final SerializableDataType<Block> BLOCK = SerializableDataType.registry(Block.class, Registry.BLOCK);
+	public static final SerializableDataType<Block> BLOCK = SerializableDataType.registry(Block.class, ForgeRegistries.BLOCKS);
 
 	public static final SerializableDataType<BlockState> BLOCK_STATE = SerializableDataType.wrap(BlockState.class, STRING,
 			BlockStateParser::serialize,
@@ -325,27 +329,17 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<EquipmentSlot> EQUIPMENT_SLOT = SerializableDataType.enumValue(EquipmentSlot.class);
 
-	public static final SerializableDataType<SoundEvent> SOUND_EVENT = SerializableDataType.registry(SoundEvent.class, Registry.SOUND_EVENT);
+	public static final SerializableDataType<SoundEvent> SOUND_EVENT = SerializableDataType.registry(SoundEvent.class, ForgeRegistries.SOUND_EVENTS);
 
-	public static final SerializableDataType<EntityType<?>> ENTITY_TYPE = SerializableDataType.registry(ClassUtil.castClass(EntityType.class), Registry.ENTITY_TYPE);
+	public static final SerializableDataType<EntityType<?>> ENTITY_TYPE = SerializableDataType.registry(ClassUtil.castClass(EntityType.class), ForgeRegistries.ENTITIES);
 
-	public static final SerializableDataType<ParticleType<?>> PARTICLE_TYPE = SerializableDataType.registry(ClassUtil.castClass(ParticleType.class), Registry.PARTICLE_TYPE);
+	public static final SerializableDataType<ParticleType<?>> PARTICLE_TYPE = SerializableDataType.registry(ClassUtil.castClass(ParticleType.class), ForgeRegistries.PARTICLE_TYPES);
 
 	public static final SerializableDataType<ParticleOptions> PARTICLE_EFFECT = SerializableDataType.compound(ParticleOptions.class,
 			new SerializableData()
 					.add("type", PARTICLE_TYPE)
 					.add("params", STRING, ""),
-			dataInstance -> {
-				ParticleType<? extends ParticleOptions> particleType = dataInstance.get("type");
-				ParticleOptions.Deserializer factory = particleType.getDeserializer();
-				ParticleOptions effect = null;
-				try {
-					effect = factory.fromCommand(particleType, new StringReader(" " + dataInstance.getString("params")));
-				} catch (CommandSyntaxException e) {
-					throw new RuntimeException(e);
-				}
-				return effect;
-			},
+			dataInstance -> SerializationHelper.loadParticle(dataInstance.get("type"), dataInstance.getString("params")),
 			((serializableData, particleEffect) -> {
 				SerializableData.Instance data = serializableData.new Instance();
 				data.set("type", particleEffect.getType());
@@ -420,14 +414,17 @@ public final class SerializableDataTypes {
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public static final SerializableDataType<Recipe> RECIPE = new SerializableDataType<>(Recipe.class,
 			(buffer, recipe) -> {
-				buffer.writeResourceLocation(recipe.getSerializer().getRegistryName());
+				ResourceLocation serializerName = recipe.getSerializer().getRegistryName();
+				Validate.notNull(serializerName, "Recipe serializer %s was not registered.".formatted(recipe.getSerializer()));
+				buffer.writeResourceLocation(serializerName);
 				buffer.writeResourceLocation(recipe.getId());
 				recipe.getSerializer().toNetwork(buffer, recipe);
 			},
 			(buffer) -> {
 				ResourceLocation recipeSerializerId = buffer.readResourceLocation();
 				ResourceLocation recipeId = buffer.readResourceLocation();
-				RecipeSerializer serializer = ForgeRegistries.RECIPE_SERIALIZERS.getValue(recipeSerializerId);
+				RecipeSerializer<?> serializer = ForgeRegistries.RECIPE_SERIALIZERS.getValue(recipeSerializerId);
+				Validate.notNull(serializer, "Missing recipe serializer: %s".formatted(recipeSerializerId));
 				return serializer.fromNetwork(recipeId, buffer);
 			},
 			(jsonElement) -> {
@@ -437,7 +434,9 @@ public final class SerializableDataTypes {
 				JsonObject json = jsonElement.getAsJsonObject();
 				ResourceLocation recipeSerializerId = ResourceLocation.tryParse(GsonHelper.getAsString(json, "type"));
 				ResourceLocation recipeId = ResourceLocation.tryParse(GsonHelper.getAsString(json, "id"));
-				RecipeSerializer serializer = ForgeRegistries.RECIPE_SERIALIZERS.getValue(recipeSerializerId);
+				RecipeSerializer<?> serializer = ForgeRegistries.RECIPE_SERIALIZERS.getValue(recipeSerializerId);
+				Validate.notNull(serializer, "Missing recipe serializer: %s".formatted(recipeSerializerId));
+				Validate.notNull(recipeId, "Missing recipe id.");
 				return serializer.fromJson(recipeId, json);
 			});
 
@@ -447,7 +446,7 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<Tag<GameEvent>> GAME_EVENT_TAG = SerializableDataType.tag(Registry.GAME_EVENT_REGISTRY);
 
-	public static final SerializableDataType<Fluid> FLUID = SerializableDataType.registry(Fluid.class, Registry.FLUID);
+	public static final SerializableDataType<Fluid> FLUID = SerializableDataType.registry(Fluid.class, ForgeRegistries.FLUIDS);
 
 	public static final SerializableDataType<FogType> CAMERA_SUBMERSION_TYPE = SerializableDataType.enumValue(FogType.class);
 
@@ -499,12 +498,8 @@ public final class SerializableDataTypes {
 				if (data.getBoolean("snack")) {
 					builder.fast();
 				}
-				data.<StatusEffectChance>ifPresent("effect", sec -> {
-					builder.effect(sec.statusEffectInstance, sec.chance);
-				});
-				data.<List<StatusEffectChance>>ifPresent("effects", secs -> secs.forEach(sec -> {
-					builder.effect(sec.statusEffectInstance, sec.chance);
-				}));
+				data.<StatusEffectChance>ifPresent("effect", sec -> builder.effect(() -> sec.statusEffectInstance, sec.chance));
+				data.<List<StatusEffectChance>>ifPresent("effects", secs -> secs.forEach(sec -> builder.effect(() -> sec.statusEffectInstance, sec.chance)));
 				return builder.build();
 			},
 			(data, fc) -> {
@@ -610,4 +605,7 @@ public final class SerializableDataTypes {
 	public static final SerializableDataType<Material> MATERIAL = SerializableDataType.mapped(Material.class, HashBiMap.create(MATERIAL_MAP));
 
 	public static final SerializableDataType<List<Material>> MATERIALS = SerializableDataType.list(MATERIAL);
+
+	public static final SerializableDataType<ArgumentWrapper<NbtPathArgument.NbtPath>> NBT_PATH =
+			SerializableDataType.argumentType(NbtPathArgument.nbtPath());
 }
