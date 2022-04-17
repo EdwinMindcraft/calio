@@ -264,39 +264,36 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<TagKey<EntityType<?>>> ENTITY_TAG = SerializableDataType.tag(Registry.ENTITY_TYPE_REGISTRY);
 
-	/*public static final SerializableDataType<HolderSet<Item>> INGREDIENT_ENTRY = new SerializableDataType<>(ClassUtil.castClass(List.class), RecordCodecBuilder.create(instance -> instance.group(
-			CalioCodecHelper.optionalField(ITEM, "item").forGetter(x -> x.size() == 1 ? Optional.of(x.get(0)) : Optional.empty()),
-			CalioCodecHelper.optionalField(ITEM_TAG, "tag").forGetter(items -> {
-				if (items.size() == 1)
-					return Optional.empty();
-				Registry.ITEM.getTagOrEmpty(items).forEach();
-				TagContainer tagManager = Calio.getTagManager();
-				TagCollection<Item> tagGroup = tagManager.getOrEmpty(Registry.ITEM_REGISTRY);
-				Collection<ResourceLocation> possibleTags = tagGroup.getMatchingTags(items.get(0));
-				for (int i = 1; i < items.size() && possibleTags.size() > 1; i++) {
-					possibleTags.removeAll(tagGroup.getMatchingTags(items.get(i)));
-				}
-				if (possibleTags.size() != 1) {
-					throw new IllegalStateException("Couldn't transform item list to a single tag");
-				}
-				return possibleTags.stream().findFirst().map(tagGroup::getTag);
-			})
-	).apply(instance, (item, itemTag) -> itemTag.map(Tag::getValues).or(() -> item.map(ImmutableList::of)).orElseGet(ImmutableList::of))));
+    public static final SerializableDataType<Ingredient.Entry> INGREDIENT_ENTRY = SerializableDataType.compound(ClassUtil.castClass(Ingredient.Entry.class),
+        new SerializableData()
+            .add("item", ITEM, null)
+            .add("tag", ITEM_TAG, null),
+        dataInstance -> {
+            boolean tagPresent = dataInstance.isPresent("tag");
+            boolean itemPresent = dataInstance.isPresent("item");
+            if(tagPresent == itemPresent) {
+                throw new JsonParseException("An ingredient entry is either a tag or an item, " + (tagPresent ? "not both" : "one has to be provided."));
+            }
+            if(tagPresent) {
+                TagKey<Item> tag = dataInstance.get("tag");
+                return new Ingredient.TagEntry(tag);
+            } else {
+                return new Ingredient.StackEntry(new ItemStack((Item)dataInstance.get("item")));
+            }
+        }, (data, entry) -> data.read(entry.toJson()));
 
-	public static final SerializableDataType<List<List<Item>>> INGREDIENT_ENTRIES = SerializableDataType.list(INGREDIENT_ENTRY);
+    public static final SerializableDataType<List<Ingredient.Entry>> INGREDIENT_ENTRIES = SerializableDataType.list(INGREDIENT_ENTRY);
 
-	// An alternative version of an ingredient deserializer which allows `minecraft:air`
-	public static final SerializableDataType<Ingredient> INGREDIENT = new SerializableDataType<>(
-			Ingredient.class,
-			(buffer, ingredient) -> ingredient.toNetwork(buffer),
-			Ingredient::fromNetwork,
-			jsonElement -> {
-				List<List<Item>> itemLists = INGREDIENT_ENTRIES.read(jsonElement);
-				List<ItemStack> items = new LinkedList<>();
-				itemLists.forEach(itemList -> itemList.forEach(item -> items.add(new ItemStack(item))));
-				return Ingredient.of(items.stream());
-			},
-			Ingredient::toJson);*/
+    // An alternative version of an ingredient deserializer which allows `minecraft:air`
+    public static final SerializableDataType<Ingredient> INGREDIENT = new SerializableDataType<>(
+        Ingredient.class,
+        (buffer, ingredient) -> ingredient.write(buffer),
+        Ingredient::fromPacket,
+        jsonElement -> {
+            List<Ingredient.Entry> entryList = INGREDIENT_ENTRIES.read(jsonElement);
+            return Ingredient.ofEntries(entryList.stream());
+        },
+        Ingredient::toJson);
 
 	// The regular vanilla Minecraft ingredient.
 	public static final SerializableDataType<Ingredient> VANILLA_INGREDIENT = new SerializableDataType<>(
@@ -401,11 +398,7 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<List<Component>> TEXTS = SerializableDataType.list(TEXT);
 
-	public static SerializableDataType<ResourceKey<Level>> DIMENSION = SerializableDataType.wrap(
-			ClassUtil.castClass(ResourceKey.class),
-			SerializableDataTypes.IDENTIFIER,
-			ResourceKey::location, identifier -> ResourceKey.create(Registry.DIMENSION_REGISTRY, identifier)
-	);
+    public static SerializableDataType<RegistryKey<World>> DIMENSION = SerializableDataType.registryKey(Registry.WORLD_KEY);
 
 	// It is theoretically possible to support recipe serialization, but it's a mess.
 	// To do this, we need to keep an additional list functions designed to build RecipeJsonProvider

@@ -131,9 +131,17 @@ public class SerializableDataType<T> implements Codec<T> {
 
 	public static <T> SerializableDataType<TagKey<T>> tag(ResourceKey<? extends Registry<T>> registryKey) {
 		return SerializableDataType.wrap(ClassUtil.castClass(Tag.class), SerializableDataTypes.IDENTIFIER,
-				TagKey::location,
-				id -> TagKey.create(registryKey, id));
+			TagKey::location,
+			id -> TagKey.create(registryKey, id));
 	}
+
+    public static <T> SerializableDataType<RegistryKey<T>> registryKey(RegistryKey<Registry<T>> registryKeyRegistry) {
+        return SerializableDataType.wrap(
+            ClassUtil.castClass(RegistryKey.class),
+            SerializableDataTypes.IDENTIFIER,
+            RegistryKey::getValue, identifier -> RegistryKey.of(registryKeyRegistry, identifier)
+        );
+    }
 
 	public static <T extends Enum<T>> SerializableDataType<EnumSet<T>> enumSet(Class<T> enumClass, SerializableDataType<T> enumDataType) {
 		return new SerializableDataType<>(ClassUtil.castClass(EnumSet.class),

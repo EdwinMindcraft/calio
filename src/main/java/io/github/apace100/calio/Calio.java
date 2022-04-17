@@ -68,32 +68,23 @@ public class Calio {
 		}
 	}
 
-	/*public static TagContainer getTagManager() {
-		return tagManagerGetter.get();
+	public static <T> boolean areTagsEqual(RegistryKey<? extends Registry<T>> registryKey, TagKey<T> tag1, TagKey<T> tag2) {
+		return areTagsEqual(tag1, tag2);
 	}
 
-	public static <T> boolean areTagsEqual(ResourceKey<? extends Registry<T>> registryKey, Tag<T> tag1, Tag<T> tag2) {
-		if (tag1 == tag2) {
+	public static <T> boolean areTagsEqual(TagKey<T> tag1, TagKey<T> tag2) {
+		if(tag1 == tag2) {
 			return true;
 		}
 		if (tag1 == null || tag2 == null) {
 			return false;
 		}
-		TagContainer tagManager = Calio.getTagManager();
-		try {
-			ResourceLocation id1;
-			if (tag1 instanceof Tag.Named)
-				id1 = ((Tag.Named<?>) tag1).getName();
-			else
-				id1 = tagManager.getIdOrThrow(registryKey, tag1, RuntimeException::new);
-			ResourceLocation id2;
-			if (tag2 instanceof Tag.Named)
-				id2 = ((Tag.Named<?>) tag2).getName();
-			else
-				id2 = tagManager.getIdOrThrow(registryKey, tag2, RuntimeException::new);
-			return id1.equals(id2);
-		} catch (Exception e) {
+		if(!tag1.registry().equals(tag2.registry())) {
 			return false;
 		}
-	}*/
+		if(!tag1.id().equals(tag2.id())) {
+			return false;
+		}
+		return true;
+	}
 }

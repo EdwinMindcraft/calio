@@ -33,18 +33,18 @@ public class SerializationHelper {
 		return ForgeRegistries.BLOCKS.tags().createTagKey(id);
 	}
 
-	// Use SerializableDataTypes.ATTRIBUTE_MODIFIER instead
-	@Deprecated
-	public static AttributeModifier readAttributeModifier(JsonElement jsonElement) {
-		if (jsonElement.isJsonObject()) {
-			JsonObject json = jsonElement.getAsJsonObject();
-			String name = GsonHelper.getAsString(json, "name", "Unnamed attribute modifier");
-			String operation = GsonHelper.getAsString(json, "operation").toUpperCase();
-			double value = GsonHelper.getAsFloat(json, "value");
-			return new AttributeModifier(name, value, AttributeModifier.Operation.valueOf(operation));
-		}
-		throw new JsonSyntaxException("Attribute modifier needs to be a JSON object.");
-	}
+    // Use SerializableDataTypes.ATTRIBUTE_MODIFIER instead
+    @Deprecated
+    public static AttributeModifier readAttributeModifier(JsonElement jsonElement) {
+        if(jsonElement.isJsonObject()) {
+            JsonObject json = GsonHelper.getAsJsonObject();
+            String name = GsonHelper.getAsString(json, "name", "Unnamed attribute modifier");
+            String operation = GsonHelper.getAsString(json, "operation").toUpperCase(Locale.ROOT);
+            double value = GsonHelper.getAsFloat(json, "value");
+            return new AttributeModifier(name, value, EntityAttributeModifier.Operation.valueOf(operation));
+        }
+        throw new JsonSyntaxException("Attribute modifier needs to be a JSON object.");
+    }
 
 	// Use SerializableDataTypes.ATTRIBUTE_MODIFIER instead
 	@Deprecated
