@@ -55,21 +55,21 @@ public class ClassDataRegistry<T> {
 			return Optional.of(this.directMappings.get(str));
 		}
 		try {
-			return Optional.of((Class<? extends T>) Class.forName(str));
+			return Optional.of(Class.forName(str).asSubclass(this.clazz));
 		} catch (Exception e0) {
 			failedClasses.append(str);
 		}
 		for (String pkg : this.packages) {
 			String full = pkg + "." + str;
 			try {
-				return Optional.of((Class<? extends T>) Class.forName(full));
+				return Optional.of(Class.forName(full).asSubclass(this.clazz));
 			} catch (Exception e1) {
 				failedClasses.append(", ");
 				failedClasses.append(full);
 			}
 			full = pkg + "." + transformJsonToClass(str, this.classSuffix);
 			try {
-				return Optional.of((Class<? extends T>) Class.forName(full));
+				return Optional.of(Class.forName(full).asSubclass(this.clazz));
 			} catch (Exception e2) {
 				failedClasses.append(", ");
 				failedClasses.append(full);
@@ -90,28 +90,28 @@ public class ClassDataRegistry<T> {
 				});
 	}
 
-	public static Optional<ClassDataRegistry> get(Class<?> cls) {
+	@SuppressWarnings("unchecked")
+	public static <T> Optional<ClassDataRegistry<T>> get(Class<T> cls) {
 		if (REGISTRIES.containsKey(cls)) {
-			return Optional.of(REGISTRIES.get(cls));
+			return Optional.of((ClassDataRegistry<T>) REGISTRIES.get(cls));
 		} else {
 			return Optional.empty();
 		}
 	}
 
 	public static <T> ClassDataRegistry<T> getOrCreate(Class<T> cls, String classSuffix) {
-		if (REGISTRIES.containsKey(cls)) {
-			return (ClassDataRegistry<T>) REGISTRIES.get(cls);
-		} else {
-			ClassDataRegistry<T> cdr = new ClassDataRegistry<>(cls, classSuffix);
-			REGISTRIES.put(cls, cdr);
-			return cdr;
-		}
+		Optional<ClassDataRegistry<T>> ocdr = get(cls);
+		if (ocdr.isPresent())
+			return ocdr.get();
+		ClassDataRegistry<T> cdr = new ClassDataRegistry<>(cls, classSuffix);
+		REGISTRIES.put(cls, cdr);
+		return cdr;
 	}
 
 	private static String transformJsonToClass(String jsonName, String classSuffix) {
 		StringBuilder builder = new StringBuilder();
 		boolean caps = true;
-		int capsOffset = 'A' - 'a';
+		//int capsOffset = 'A' - 'a';
 		for (char c : jsonName.toCharArray()) {
 			if (c == '_') {
 				caps = true;

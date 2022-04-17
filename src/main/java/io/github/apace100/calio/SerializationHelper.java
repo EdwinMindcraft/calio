@@ -20,28 +20,30 @@ import net.minecraftforge.registries.ForgeRegistries;
 import org.apache.commons.lang3.Validate;
 
 import java.util.HashMap;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.function.Function;
 
 public class SerializationHelper {
 
 	public static TagKey<Fluid> getFluidTagFromId(ResourceLocation id) {
-		return ForgeRegistries.FLUIDS.tags().createTagKey(id);
+		return Objects.requireNonNull(ForgeRegistries.FLUIDS.tags()).createTagKey(id);
 	}
 
 	//TODO Check if this is enough
 	public static TagKey<Block> getBlockTagFromId(ResourceLocation id) {
-		return ForgeRegistries.BLOCKS.tags().createTagKey(id);
+		return Objects.requireNonNull(ForgeRegistries.BLOCKS.tags()).createTagKey(id);
 	}
 
     // Use SerializableDataTypes.ATTRIBUTE_MODIFIER instead
     @Deprecated
     public static AttributeModifier readAttributeModifier(JsonElement jsonElement) {
         if(jsonElement.isJsonObject()) {
-            JsonObject json = GsonHelper.getAsJsonObject();
+            JsonObject json = jsonElement.getAsJsonObject();
             String name = GsonHelper.getAsString(json, "name", "Unnamed attribute modifier");
             String operation = GsonHelper.getAsString(json, "operation").toUpperCase(Locale.ROOT);
             double value = GsonHelper.getAsFloat(json, "value");
-            return new AttributeModifier(name, value, EntityAttributeModifier.Operation.valueOf(operation));
+            return new AttributeModifier(name, value, AttributeModifier.Operation.valueOf(operation));
         }
         throw new JsonSyntaxException("Attribute modifier needs to be a JSON object.");
     }

@@ -7,8 +7,7 @@ import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.core.Registry;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.Tag;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
@@ -56,7 +55,7 @@ public class Calio {
 	 * Sets whether the item stack counts the entity attribute modifiers specified in its tag as additional,
 	 * meaning they won't overwrite the equipment's inherent modifiers.
 	 *
-	 * @param stack The {@link ItemStack} to set the status of.
+	 * @param stack      The {@link ItemStack} to set the status of.
 	 * @param additional The status to set.
 	 */
 	public static void setEntityAttributesAdditional(ItemStack stack, boolean additional) {
@@ -68,23 +67,28 @@ public class Calio {
 		}
 	}
 
-	public static <T> boolean areTagsEqual(RegistryKey<? extends Registry<T>> registryKey, TagKey<T> tag1, TagKey<T> tag2) {
+	/**
+	 * @deprecated Are tags equals is strictly equivalent to {@link TagKey#equals(Object)}
+	 */
+	@Deprecated
+	public static <T> boolean areTagsEqual(ResourceKey<? extends Registry<T>> registryKey, TagKey<T> tag1, TagKey<T> tag2) {
 		return areTagsEqual(tag1, tag2);
 	}
 
+	/**
+	 * @deprecated Are tags equals is strictly equivalent to {@link TagKey#equals(Object)}
+	 */
+	@Deprecated
 	public static <T> boolean areTagsEqual(TagKey<T> tag1, TagKey<T> tag2) {
-		if(tag1 == tag2) {
+		if (tag1 == tag2) {
 			return true;
 		}
 		if (tag1 == null || tag2 == null) {
 			return false;
 		}
-		if(!tag1.registry().equals(tag2.registry())) {
+		if (!tag1.registry().equals(tag2.registry())) {
 			return false;
 		}
-		if(!tag1.id().equals(tag2.id())) {
-			return false;
-		}
-		return true;
+		return tag1.location().equals(tag2.location());
 	}
 }

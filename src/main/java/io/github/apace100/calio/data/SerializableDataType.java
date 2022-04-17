@@ -1,7 +1,9 @@
 package io.github.apace100.calio.data;
 
 import com.google.common.collect.BiMap;
-import com.google.gson.*;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
+import com.google.gson.JsonParseException;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -131,17 +133,17 @@ public class SerializableDataType<T> implements Codec<T> {
 
 	public static <T> SerializableDataType<TagKey<T>> tag(ResourceKey<? extends Registry<T>> registryKey) {
 		return SerializableDataType.wrap(ClassUtil.castClass(Tag.class), SerializableDataTypes.IDENTIFIER,
-			TagKey::location,
-			id -> TagKey.create(registryKey, id));
+				TagKey::location,
+				id -> TagKey.create(registryKey, id));
 	}
 
-    public static <T> SerializableDataType<RegistryKey<T>> registryKey(RegistryKey<Registry<T>> registryKeyRegistry) {
-        return SerializableDataType.wrap(
-            ClassUtil.castClass(RegistryKey.class),
-            SerializableDataTypes.IDENTIFIER,
-            RegistryKey::getValue, identifier -> RegistryKey.of(registryKeyRegistry, identifier)
-        );
-    }
+	public static <T> SerializableDataType<ResourceKey<T>> registryKey(ResourceKey<Registry<T>> registryKeyRegistry) {
+		return SerializableDataType.wrap(
+				ClassUtil.castClass(ResourceKey.class),
+				SerializableDataTypes.IDENTIFIER,
+				ResourceKey::location, identifier -> ResourceKey.create(registryKeyRegistry, identifier)
+		);
+	}
 
 	public static <T extends Enum<T>> SerializableDataType<EnumSet<T>> enumSet(Class<T> enumClass, SerializableDataType<T> enumDataType) {
 		return new SerializableDataType<>(ClassUtil.castClass(EnumSet.class),
@@ -229,16 +231,16 @@ public class SerializableDataType<T> implements Codec<T> {
 		}
 	}
 
-    public static <T, U extends ArgumentType<T>> SerializableDataType<ArgumentWrapper<T>> argumentType(U argumentType) {
-        return wrap(ClassUtil.castClass(ArgumentWrapper.class), SerializableDataTypes.STRING,
-                ArgumentWrapper::rawArgument,
-                str -> {
-                    try {
-                        T t = argumentType.parse(new StringReader(str));
-                        return new ArgumentWrapper<>(t, str);
-                    } catch (CommandSyntaxException e) {
-                        throw new RuntimeException("Wrong syntax in argument type data", e);
-                    }
-                });
-    }
+	public static <T, U extends ArgumentType<T>> SerializableDataType<ArgumentWrapper<T>> argumentType(U argumentType) {
+		return wrap(ClassUtil.castClass(ArgumentWrapper.class), SerializableDataTypes.STRING,
+				ArgumentWrapper::rawArgument,
+				str -> {
+					try {
+						T t = argumentType.parse(new StringReader(str));
+						return new ArgumentWrapper<>(t, str);
+					} catch (CommandSyntaxException e) {
+						throw new RuntimeException("Wrong syntax in argument type data", e);
+					}
+				});
+	}
 }

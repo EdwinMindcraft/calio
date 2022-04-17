@@ -264,7 +264,7 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<TagKey<EntityType<?>>> ENTITY_TAG = SerializableDataType.tag(Registry.ENTITY_TYPE_REGISTRY);
 
-    public static final SerializableDataType<Ingredient.Entry> INGREDIENT_ENTRY = SerializableDataType.compound(ClassUtil.castClass(Ingredient.Entry.class),
+    public static final SerializableDataType<Ingredient.Value> INGREDIENT_ENTRY = SerializableDataType.compound(ClassUtil.castClass(Ingredient.Value.class),
         new SerializableData()
             .add("item", ITEM, null)
             .add("tag", ITEM_TAG, null),
@@ -276,22 +276,22 @@ public final class SerializableDataTypes {
             }
             if(tagPresent) {
                 TagKey<Item> tag = dataInstance.get("tag");
-                return new Ingredient.TagEntry(tag);
+                return new Ingredient.TagValue(tag);
             } else {
-                return new Ingredient.StackEntry(new ItemStack((Item)dataInstance.get("item")));
+                return new Ingredient.ItemValue(new ItemStack((Item)dataInstance.get("item")));
             }
-        }, (data, entry) -> data.read(entry.toJson()));
+        }, (data, entry) -> data.read(entry.serialize()));
 
-    public static final SerializableDataType<List<Ingredient.Entry>> INGREDIENT_ENTRIES = SerializableDataType.list(INGREDIENT_ENTRY);
+    public static final SerializableDataType<List<Ingredient.Value>> INGREDIENT_ENTRIES = SerializableDataType.list(INGREDIENT_ENTRY);
 
     // An alternative version of an ingredient deserializer which allows `minecraft:air`
     public static final SerializableDataType<Ingredient> INGREDIENT = new SerializableDataType<>(
         Ingredient.class,
-        (buffer, ingredient) -> ingredient.write(buffer),
-        Ingredient::fromPacket,
+        (buffer, ingredient) -> ingredient.toNetwork(buffer),
+        Ingredient::fromNetwork,
         jsonElement -> {
-            List<Ingredient.Entry> entryList = INGREDIENT_ENTRIES.read(jsonElement);
-            return Ingredient.ofEntries(entryList.stream());
+            List<Ingredient.Value> entryList = INGREDIENT_ENTRIES.read(jsonElement);
+            return Ingredient.fromValues(entryList.stream());
         },
         Ingredient::toJson);
 
@@ -398,7 +398,7 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<List<Component>> TEXTS = SerializableDataType.list(TEXT);
 
-    public static SerializableDataType<RegistryKey<World>> DIMENSION = SerializableDataType.registryKey(Registry.WORLD_KEY);
+    public static SerializableDataType<ResourceKey<Level>> DIMENSION = SerializableDataType.registryKey(Registry.DIMENSION_REGISTRY);
 
 	// It is theoretically possible to support recipe serialization, but it's a mess.
 	// To do this, we need to keep an additional list functions designed to build RecipeJsonProvider

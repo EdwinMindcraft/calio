@@ -2,12 +2,8 @@ package io.github.apace100.calio.util;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import io.github.edwinmindcraft.calio.common.registry.CalioDynamicRegistryManager;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.PreparableReloadListener;
-import net.minecraft.server.packs.resources.ReloadableResourceManager;
-import net.minecraftforge.event.AddReloadListenerEvent;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -21,7 +17,7 @@ public final class OrderedResourceListeners {
 	private static final Map<ResourceLocation, ImmutableRegistration> REGISTRATIONS = new HashMap<>();
 
 	public static List<PreparableReloadListener> orderedList() {
-		List<ResourceLocation> handled = new ArrayList<>();
+		Set<ResourceLocation> handled = new HashSet<>();
 		int prevSize;
 		do {
 			prevSize = handled.size();
@@ -49,7 +45,8 @@ public final class OrderedResourceListeners {
 		REGISTRATIONS.put(registration.key(), new ImmutableRegistration(registration.resourceReloadListener, registration.key(), registration.afterSet.build(), registration.dummy));
 	}
 
-	private record ImmutableRegistration(PreparableReloadListener listener, ResourceLocation key, ImmutableSet<ResourceLocation> dependencies, boolean dummy) {}
+	private record ImmutableRegistration(PreparableReloadListener listener, ResourceLocation key,
+										 ImmutableSet<ResourceLocation> dependencies, boolean dummy) {}
 
 	public static class Registration {
 
