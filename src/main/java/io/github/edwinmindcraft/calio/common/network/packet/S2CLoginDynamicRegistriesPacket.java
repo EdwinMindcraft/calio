@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
+@Deprecated
 public class S2CLoginDynamicRegistriesPacket implements IntSupplier {
 	public static List<Pair<String, S2CLoginDynamicRegistriesPacket>> createLoginPacket(boolean isLocal) {
 		try {

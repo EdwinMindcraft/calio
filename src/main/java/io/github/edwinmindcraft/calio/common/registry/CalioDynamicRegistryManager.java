@@ -18,6 +18,8 @@ import io.github.edwinmindcraft.calio.api.registry.DynamicEntryValidator;
 import io.github.edwinmindcraft.calio.api.registry.ICalioDynamicRegistryManager;
 import io.github.edwinmindcraft.calio.client.util.ClientHelper;
 import io.github.edwinmindcraft.calio.common.CalioConfig;
+import io.github.edwinmindcraft.calio.common.network.CalioNetwork;
+import io.github.edwinmindcraft.calio.common.network.packet.S2CDynamicRegistryPacket;
 import net.minecraft.core.*;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
@@ -29,6 +31,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.DistExecutor;
+import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.registries.IForgeRegistryEntry;
 import org.apache.commons.lang3.Validate;
 import org.apache.commons.lang3.tuple.Pair;
@@ -122,6 +125,17 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 			MinecraftForge.EVENT_BUS.post(new CalioDynamicRegistryEvent.LoadComplete(this));
 			this.dump();
 		}, executor);
+	}
+
+	public void synchronize(PacketDistributor.PacketTarget target) {
+		//CalioNetwork.CHANNEL.send(target, new S2CDynamicRegistriesPacket(this));
+		for (S2CDynamicRegistryPacket.Play<?> packet : S2CDynamicRegistryPacket.Play.create(this))
+			CalioNetwork.CHANNEL.send(target, packet);
+	}
+
+	@SuppressWarnings("unchecked")
+	public <T> Codec<T> getCodec(ResourceKey<Registry<T>> key) {
+		return ((Codec<T>) this.definitions.get(key).codec());
 	}
 
 	public void dump() {
@@ -238,6 +252,10 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		this.validators.put(key, new Validator<>(key, validator, eventClass, after));
 	}
 
+	public Set<ResourceKey<Registry<?>>> getRegistryNames() {
+		return (Set<ResourceKey<Registry<?>>>) (Set) this.definitions.keySet();
+	}
+
 	@Override
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public <T> WritableRegistry<T> reset(ResourceKey<Registry<T>> key) {
@@ -274,7 +292,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	}
 
 	@SuppressWarnings("unchecked")
-	private <T> void writeRegistry(ResourceKey<?> key, Registry<T> registry, FriendlyByteBuf buffer) {
+	public <T> void writeRegistry(ResourceKey<?> key, Registry<T> registry, FriendlyByteBuf buffer) {
 		Codec<T> codec = (Codec<T>) this.definitions.get(key).codec();
 		buffer.writeResourceLocation(key.location());
 		List<Pair<ResourceLocation, T>> entries = new ArrayList<>(registry.size());
@@ -364,7 +382,8 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		}
 	}
 
-	private record RegistryDefinition<T>(Consumer<BiConsumer<ResourceKey<T>, T>> builtin, Codec<T> codec, @Nullable Supplier<ResourceLocation> defaultValue) {
+	private record RegistryDefinition<T>(Consumer<BiConsumer<ResourceKey<T>, T>> builtin, Codec<T> codec,
+										 @Nullable Supplier<ResourceLocation> defaultValue) {
 
 		public MappedRegistry<T> newRegistry(ResourceKey<Registry<T>> key) {
 			//As this is dynamic, there is no certainty as to the content, so we don't have a backing IdentityHashMap.

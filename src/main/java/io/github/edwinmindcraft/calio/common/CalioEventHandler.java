@@ -6,8 +6,6 @@ import io.github.apace100.calio.util.OrderedResourceListeners;
 import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.api.ability.IAbilityHolder;
 import io.github.edwinmindcraft.calio.common.ability.AbilityHolder;
-import io.github.edwinmindcraft.calio.common.network.CalioNetwork;
-import io.github.edwinmindcraft.calio.common.network.packet.S2CDynamicRegistriesPacket;
 import io.github.edwinmindcraft.calio.common.registry.CalioDynamicRegistryManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -33,7 +31,7 @@ public class CalioEventHandler {
 	@SubscribeEvent
 	public static void onDatapack(OnDatapackSyncEvent event) {
 		PacketDistributor.PacketTarget target = event.getPlayer() == null ? PacketDistributor.ALL.noArg() : PacketDistributor.PLAYER.with(event::getPlayer);
-		CalioNetwork.CHANNEL.send(target, new S2CDynamicRegistriesPacket(CalioDynamicRegistryManager.getInstance(event.getPlayerList().getServer().registryAccess())));
+		CalioDynamicRegistryManager.getInstance(event.getPlayerList().getServer().registryAccess()).synchronize(target);
 		if (event.getPlayer() != null)
 			DataObjectRegistry.performAutoSync(event.getPlayer());
 	}
