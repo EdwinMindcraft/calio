@@ -2,7 +2,6 @@ package io.github.edwinmindcraft.calio.api.network;
 
 import com.google.common.collect.ImmutableList;
 import com.google.gson.*;
-import com.mojang.datafixers.util.Either;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.math.Vector3f;
 import com.mojang.serialization.*;
@@ -22,7 +21,6 @@ import net.minecraftforge.registries.IForgeRegistryEntry;
 
 import java.lang.reflect.Type;
 import java.util.*;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -70,7 +68,7 @@ public class CalioCodecHelper {
 	 * @return A new list codec.
 	 */
 	public static <T> Codec<List<T>> listOf(Codec<T> source) {
-		return Codec.either(source, source.listOf()).xmap(x -> x.map(Arrays::asList, Function.identity()), x -> x.size() == 1 ? Either.left(x.get(0)) : Either.right(x));
+		return new UnitListCodec<>(source);
 	}
 
 	/**
