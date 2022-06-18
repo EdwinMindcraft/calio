@@ -12,11 +12,13 @@ import net.minecraft.core.WritableRegistry;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
 import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.registries.IForgeRegistryEntry;
 import net.minecraftforge.server.ServerLifecycleHooks;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
@@ -48,7 +50,7 @@ public abstract class S2CDynamicRegistryPacket<T> {
 		}
 	}
 
-	public static <T, V extends S2CDynamicRegistryPacket<T>> V decode(FriendlyByteBuf buffer, Decoder<T, V> decoder) {
+	private static <T, V extends S2CDynamicRegistryPacket<T>> V decodeWithBuilder(FriendlyByteBuf buffer, Decoder<T, V> decoder) {
 		CalioDynamicRegistryManager cdrm = CalioDynamicRegistryManager.getInstance(null);
 		ResourceKey<Registry<T>> registryKey = ResourceKey.createRegistryKey(buffer.readResourceLocation());
 		MappedRegistry<T> registry = new MappedRegistry<>(registryKey, Lifecycle.experimental(), null);
@@ -67,10 +69,14 @@ public abstract class S2CDynamicRegistryPacket<T> {
 		handler.get().enqueueWork(() -> {
 			CalioDynamicRegistryManager instance = CalioDynamicRegistryManager.getInstance(null);
 			WritableRegistry<T> target = instance.reset(this.key);
-			for (Map.Entry<ResourceKey<T>, T> entry : this.registry.entrySet())
-				target.registerMapping(this.registry.getId(entry.getValue()), entry.getKey(), entry.getValue(), Lifecycle.experimental());
+			for (Map.Entry<ResourceKey<T>, T> entry : this.registry.entrySet()) {
+				if (entry.getValue() instanceof IForgeRegistryEntry<?> fre)
+					fre.setRegistryName(entry.getKey().location());
+				target.registerOrOverride(OptionalInt.of(this.registry.getId(entry.getValue())), entry.getKey(), entry.getValue(), Lifecycle.experimental());
+			}
 		});
-		CalioNetwork.CHANNEL.reply(new C2SAcknowledgePacket(), handler.get());
+		if (this instanceof S2CDynamicRegistryPacket.Login<T>)
+			CalioNetwork.CHANNEL.reply(new C2SAcknowledgePacket(), handler.get());
 		handler.get().setPacketHandled(true);
 	}
 
@@ -104,7 +110,7 @@ public abstract class S2CDynamicRegistryPacket<T> {
 		}
 
 		public static <T> Login<T> decode(FriendlyByteBuf buf) {
-			return S2CDynamicRegistryPacket.decode(buf, Login::new);
+			return S2CDynamicRegistryPacket.<T, Login<T>>decodeWithBuilder(buf, Login<T>::new);
 		}
 
 		public static List<Pair<String, S2CDynamicRegistryPacket.Login>> create(boolean isLocal) {
@@ -132,7 +138,7 @@ public abstract class S2CDynamicRegistryPacket<T> {
 		}
 
 		public static <T> Play<T> decode(FriendlyByteBuf buf) {
-			return S2CDynamicRegistryPacket.decode(buf, Play::new);
+			return S2CDynamicRegistryPacket.<T, Play<T>>decodeWithBuilder(buf, Play<T>::new);
 		}
 
 		public static List<S2CDynamicRegistryPacket.Play<?>> create(CalioDynamicRegistryManager manager) {
