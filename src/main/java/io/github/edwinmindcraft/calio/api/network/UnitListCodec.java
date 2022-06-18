@@ -63,4 +63,9 @@ public class UnitListCodec<A> implements Codec<List<A>> {
 		//Lists of lists may be broken.
 		return list.error().isPresent() ? listDecode : decode;
 	}
+
+	@Override
+	public String toString() {
+		return "UnitList[" + this.elementCodec.toString() + "]";
+	}
 }

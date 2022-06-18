@@ -71,17 +71,17 @@ import java.util.*;
 @SuppressWarnings("unused")
 public final class SerializableDataTypes {
 
-	public static final SerializableDataType<Integer> INT = new SerializableDataType<>(Integer.class, Codec.INT);
+	public static final SerializableDataType<Integer> INT = new SerializableDataType<>(Integer.class, CalioCodecHelper.INT);
 
 	public static final SerializableDataType<List<Integer>> INTS = SerializableDataType.list(INT);
 
-	public static final SerializableDataType<Boolean> BOOLEAN = new SerializableDataType<>(Boolean.class, Codec.BOOL);
+	public static final SerializableDataType<Boolean> BOOLEAN = new SerializableDataType<>(Boolean.class, CalioCodecHelper.BOOL);
 
 	public static final SerializableDataType<Float> FLOAT = new SerializableDataType<>(Float.class, Codec.FLOAT);
 
 	public static final SerializableDataType<List<Float>> FLOATS = SerializableDataType.list(FLOAT);
 
-	public static final SerializableDataType<Double> DOUBLE = new SerializableDataType<>(Double.class, Codec.DOUBLE);
+	public static final SerializableDataType<Double> DOUBLE = new SerializableDataType<>(Double.class, CalioCodecHelper.DOUBLE);
 
 	public static final SerializableDataType<String> STRING = new SerializableDataType<>(String.class, Codec.STRING);
 	public static final SerializableDataType<List<String>> STRINGS = SerializableDataType.list(STRING);
@@ -380,7 +380,7 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<ItemStack> ITEM_STACK = new SerializableDataType<>(ItemStack.class, RecordCodecBuilder.create(instance -> instance.group(
 			ITEM.fieldOf("item").forGetter(ItemStack::getItem),
-			CalioCodecHelper.optionalField(Codec.INT, "amount", 1).forGetter(ItemStack::getCount),
+			CalioCodecHelper.optionalField(CalioCodecHelper.INT, "amount", 1).forGetter(ItemStack::getCount),
 			CalioCodecHelper.optionalField(NBT, "tag").forGetter(x -> Optional.ofNullable(x.getTag()))
 	).apply(instance, (t1, t2, t3) -> {
 		ItemStack itemStack = new ItemStack(t1, t2);

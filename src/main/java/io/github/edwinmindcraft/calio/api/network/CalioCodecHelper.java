@@ -9,6 +9,9 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.apace100.calio.FilterableWeightedList;
 import io.github.apace100.calio.data.SerializableDataTypes;
 import io.github.edwinmindcraft.calio.api.CalioAPI;
+import io.github.edwinmindcraft.calio.api.network.primitives.BooleanCodec;
+import io.github.edwinmindcraft.calio.api.network.primitives.DoubleCodec;
+import io.github.edwinmindcraft.calio.api.network.primitives.IntegerCodec;
 import net.minecraft.core.*;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -50,7 +53,7 @@ public class CalioCodecHelper {
 	public static <T> Codec<FilterableWeightedList<T>> weightedListOf(Codec<T> source) {
 		return RecordCodecBuilder.<Pair<T, Integer>>create(instance -> instance.group(
 				source.fieldOf("element").forGetter(Pair::getFirst),
-				Codec.INT.fieldOf("weight").forGetter(Pair::getSecond)
+				CalioCodecHelper.INT.fieldOf("weight").forGetter(Pair::getSecond)
 		).apply(instance, Pair::of)).listOf().xmap(pairs -> {
 			FilterableWeightedList<T> list = new FilterableWeightedList<>();
 			pairs.forEach(pair -> list.add(pair.getFirst(), pair.getSecond()));
@@ -174,9 +177,9 @@ public class CalioCodecHelper {
 
 	public static MapCodec<Vec3> vec3d(String xName, String yName, String zName) {
 		return RecordCodecBuilder.mapCodec(instance -> instance.group(
-				CalioCodecHelper.optionalField(Codec.DOUBLE, xName, 0.0).forGetter(Vec3::x),
-				CalioCodecHelper.optionalField(Codec.DOUBLE, yName, 0.0).forGetter(Vec3::y),
-				CalioCodecHelper.optionalField(Codec.DOUBLE, zName, 0.0).forGetter(Vec3::z)
+				CalioCodecHelper.optionalField(CalioCodecHelper.DOUBLE, xName, 0.0).forGetter(Vec3::x),
+				CalioCodecHelper.optionalField(CalioCodecHelper.DOUBLE, yName, 0.0).forGetter(Vec3::y),
+				CalioCodecHelper.optionalField(CalioCodecHelper.DOUBLE, zName, 0.0).forGetter(Vec3::z)
 		).apply(instance, Vec3::new));
 	}
 
@@ -194,9 +197,9 @@ public class CalioCodecHelper {
 
 	public static MapCodec<BlockPos> blockPos(String xName, String yName, String zName) {
 		return RecordCodecBuilder.mapCodec(instance -> instance.group(
-				CalioCodecHelper.optionalField(Codec.INT, xName, 0).forGetter(BlockPos::getX),
-				CalioCodecHelper.optionalField(Codec.INT, yName, 0).forGetter(BlockPos::getY),
-				CalioCodecHelper.optionalField(Codec.INT, zName, 0).forGetter(BlockPos::getZ)
+				CalioCodecHelper.optionalField(CalioCodecHelper.INT, xName, 0).forGetter(BlockPos::getX),
+				CalioCodecHelper.optionalField(CalioCodecHelper.INT, yName, 0).forGetter(BlockPos::getY),
+				CalioCodecHelper.optionalField(CalioCodecHelper.INT, zName, 0).forGetter(BlockPos::getZ)
 		).apply(instance, BlockPos::new));
 	}
 
@@ -204,9 +207,13 @@ public class CalioCodecHelper {
 		return blockPos(prefix + "x", prefix + "y", prefix + "z");
 	}
 
-	public static MapCodec<Vec3> VEC3D = vec3d("x", "y", "z");
-	public static MapCodec<Vector3f> VEC3F = vec3f("x", "y", "z");
-	public static MapCodec<BlockPos> BLOCK_POS = blockPos("x", "y", "z");
+	public static final MapCodec<Vec3> VEC3D = vec3d("x", "y", "z");
+	public static final MapCodec<Vector3f> VEC3F = vec3f("x", "y", "z");
+	public static final MapCodec<BlockPos> BLOCK_POS = blockPos("x", "y", "z");
+
+	public static final Codec<Boolean> BOOL = new BooleanCodec();
+	public static final Codec<Integer> INT = new IntegerCodec();
+	public static final Codec<Double> DOUBLE = new DoubleCodec();
 
 	public static <T> CodecJsonAdapter<T> jsonAdapter(Codec<T> input) {
 		return new CodecJsonAdapter<>(input);
