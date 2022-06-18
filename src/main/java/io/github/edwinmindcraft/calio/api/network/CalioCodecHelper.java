@@ -153,6 +153,11 @@ public class CalioCodecHelper {
 		return optionalField(codec, name, supplier);
 	}
 
+	public static <A extends IForgeRegistryEntry<A>> PropagatingDefaultedOptionalFieldCodec<Holder<A>> registryField(Codec<Holder<A>> codec, String name, ResourceKey<A> value, ResourceKey<Registry<A>> registry, Supplier<IForgeRegistry<A>> builtin) {
+		Supplier<Holder<A>> supplier = () -> CalioAPI.getDynamicRegistries().get(registry) instanceof DefaultedRegistry<A> def ? def.getHolderOrThrow(value) : builtin.get().getHolder(value).orElseThrow();
+		return optionalField(codec, name, supplier);
+	}
+
 	public static final Codec<Component> COMPONENT_CODEC = new IContextAwareCodec<>() {
 		@Override
 		public JsonElement asJson(Component input) {
