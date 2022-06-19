@@ -6,6 +6,7 @@ import com.mojang.serialization.Lifecycle;
 import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.common.network.CalioNetwork;
 import io.github.edwinmindcraft.calio.common.registry.CalioDynamicRegistryManager;
+import net.minecraft.core.Holder;
 import net.minecraft.core.MappedRegistry;
 import net.minecraft.core.Registry;
 import net.minecraft.core.WritableRegistry;
@@ -42,11 +43,12 @@ public abstract class S2CDynamicRegistryPacket<T> {
 
 	public void encode(FriendlyByteBuf buffer) {
 		buffer.writeResourceLocation(this.key.location());
-		buffer.writeInt(this.registry.size());
-		for (Map.Entry<ResourceKey<T>, T> entry : this.registry.entrySet()) {
-			buffer.writeInt(this.registry.getId(entry.getValue()));
-			buffer.writeResourceLocation(entry.getKey().location());
-			buffer.writeWithCodec(this.codec, entry.getValue());
+		List<Holder.Reference<T>> references = this.registry.holders().filter(Holder.Reference::isBound).toList();
+		buffer.writeInt(references.size());
+		for (Holder.Reference<T> entry : references) {
+			buffer.writeInt(this.registry.getId(entry.value()));
+			buffer.writeResourceLocation(entry.key().location());
+			buffer.writeWithCodec(this.codec, entry.value());
 		}
 	}
 
