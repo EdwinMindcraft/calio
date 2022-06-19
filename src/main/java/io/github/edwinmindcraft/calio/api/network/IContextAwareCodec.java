@@ -8,11 +8,13 @@ import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
+import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
 
 public interface IContextAwareCodec<A> extends Codec<A> {
 	JsonElement asJson(A input);
+	@Nullable
 	A fromJson(JsonElement input);
 	void encode(A input, FriendlyByteBuf buf);
 	A decode(FriendlyByteBuf buf);
@@ -26,7 +28,10 @@ public interface IContextAwareCodec<A> extends Codec<A> {
 		if (this.useJson(ops)) {
 			JsonElement json = ops.convertTo(JsonOps.INSTANCE, input);
 			try {
-				return DataResult.success(Pair.of(this.fromJson(json), ops.empty()));
+				A a = this.fromJson(json);
+				if (a == null)
+					return DataResult.error("Json deserialization was null");
+				return DataResult.success(Pair.of(a, ops.empty()));
 			} catch (Exception e) {
 				return DataResult.error(e.getMessage());
 			}

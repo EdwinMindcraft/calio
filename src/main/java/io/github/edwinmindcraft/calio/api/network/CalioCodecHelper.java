@@ -21,6 +21,8 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.registries.IForgeRegistry;
 import net.minecraftforge.registries.IForgeRegistryEntry;
+import org.apache.commons.lang3.Validate;
+import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Type;
 import java.util.*;
@@ -28,6 +30,22 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class CalioCodecHelper {
+	/**
+	 * Defines a boolean codec that support native conversion from
+	 * string to boolean for json primitives.
+	 */
+	public static final Codec<Boolean> BOOL = new BooleanCodec();
+	/**
+	 * Defines an integer codec that support native conversion from
+	 * string to int for json primitives.
+	 */
+	public static final Codec<Integer> INT = new IntegerCodec();
+	/**
+	 * Defines a double codec that support native conversion from
+	 * string to double for json primitives.
+	 */
+	public static final Codec<Double> DOUBLE = new DoubleCodec();
+
 	/**
 	 * Creates a codec of a registry key, used for dynamic registries (Biomes, Dimensions...)
 	 *
@@ -37,22 +55,24 @@ public class CalioCodecHelper {
 	 * @return A codec for the given {@link ResourceKey}
 	 */
 	public static <T> Codec<ResourceKey<T>> resourceKey(ResourceKey<? extends Registry<T>> registry) {
+		Validate.notNull(registry, "Registry key cannot be null");
 		return SerializableDataTypes.IDENTIFIER.xmap(x -> ResourceKey.create(registry, x), ResourceKey::location);
 	}
 
 	/**
 	 * Creates a typed codec for a {@link FilterableWeightedList} from the given codec.
 	 *
-	 * @param source The codec to make a weighted list of.
-	 * @param <T>    The type of the codec.
+	 * @param codec The codec to make a weighted list of.
+	 * @param <T>   The type of the codec.
 	 *
 	 * @return A new weighted list codec.
 	 *
 	 * @see net.minecraft.world.entity.ai.behavior.ShufflingList#codec(Codec) for minecraft's weighted list.
 	 */
-	public static <T> Codec<FilterableWeightedList<T>> weightedListOf(Codec<T> source) {
+	public static <T> Codec<FilterableWeightedList<T>> weightedListOf(Codec<T> codec) {
+		Validate.notNull(codec, "Codec cannot be null");
 		return RecordCodecBuilder.<Pair<T, Integer>>create(instance -> instance.group(
-				source.fieldOf("element").forGetter(Pair::getFirst),
+				codec.fieldOf("element").forGetter(Pair::getFirst),
 				CalioCodecHelper.INT.fieldOf("weight").forGetter(Pair::getSecond)
 		).apply(instance, Pair::of)).listOf().xmap(pairs -> {
 			FilterableWeightedList<T> list = new FilterableWeightedList<>();
@@ -65,31 +85,46 @@ public class CalioCodecHelper {
 	 * Returns a list codec that will accept either a single element, or
 	 * an array of element.
 	 *
-	 * @param source The codec to make a list of.
-	 * @param <T>    The type of the codec.
+	 * @param codec The codec to make a list of.
+	 * @param <T>   The type of the codec.
 	 *
 	 * @return A new list codec.
 	 */
-	public static <T> Codec<List<T>> listOf(Codec<T> source) {
-		return new UnitListCodec<>(source);
+	public static <T> Codec<List<T>> listOf(Codec<T> codec) {
+		Validate.notNull(codec, "Codec cannot be null");
+		return new UnitListCodec<>(codec);
 	}
 
 	/**
 	 * Returns a list codec of optional elements, the resulting codec will remove
 	 * all fields that would match {@link Optional#isEmpty()}.
 	 *
-	 * @param source The codec to make a list of.
-	 * @param <T>    The type of the codec.
+	 * @param codec The codec to make a list of.
+	 * @param <T>   The type of the codec.
 	 *
 	 * @return A new list codec.
 	 */
-	public static <T> Codec<List<T>> optionalListOf(Codec<Optional<T>> source) {
-		return CalioCodecHelper.listOf(source).xmap(x -> x.stream().flatMap(Optional::stream).collect(Collectors.toList()),
+	public static <T> Codec<List<T>> optionalListOf(Codec<Optional<T>> codec) {
+		Validate.notNull(codec, "Codec cannot be null");
+		return CalioCodecHelper.listOf(codec).xmap(x -> x.stream().flatMap(Optional::stream).collect(Collectors.toList()),
 				objects -> objects.stream().filter(Objects::nonNull).map(Optional::of).collect(Collectors.toList()));
 	}
 
-	public static <T> MapCodec<List<T>> listOf(Codec<T> source, String singular, String plural) {
-		Codec<List<T>> listCodec = listOf(source);
+	/**
+	 * Create a representation of a list with a single field and a list field.
+	 * Both are effectively interchangeable in the implementation to not make
+	 * the system more complicated for the end user.
+	 * @param codec
+	 * @param singular
+	 * @param plural
+	 * @return
+	 * @param <T>
+	 */
+	public static <T> MapCodec<List<T>> listOf(Codec<T> codec, String singular, String plural) {
+		Validate.notNull(codec, "Codec cannot be null");
+		Validate.notNull(singular, "Singular cannot be null");
+		Validate.notNull(plural, "Plural cannot be null");
+		Codec<List<T>> listCodec = listOf(codec);
 		return RecordCodecBuilder.mapCodec(instance -> instance.group(
 				optionalField(listCodec, singular, ImmutableList.of()).forGetter(x -> x.size() == 1 ? x : ImmutableList.of()),
 				optionalField(listCodec, plural, ImmutableList.of()).forGetter(x -> x.size() == 1 ? ImmutableList.of() : x)
@@ -100,13 +135,14 @@ public class CalioCodecHelper {
 	 * A utility function to create a codec that accepts {@link Set Sets} as an input
 	 * instead of a {@link List}.
 	 *
-	 * @param source The codec to make a set of.
-	 * @param <T>    The type of the codec
+	 * @param codec The codec to make a set of.
+	 * @param <T>   The type of the codec
 	 *
 	 * @return A new set codec.
 	 */
-	public static <T> Codec<Set<T>> setOf(Codec<T> source) {
-		return CalioCodecHelper.listOf(source).xmap(HashSet::new, ArrayList::new);
+	public static <T> Codec<Set<T>> setOf(Codec<T> codec) {
+		Validate.notNull(codec, "Codec cannot be null");
+		return CalioCodecHelper.listOf(codec).xmap(HashSet::new, ArrayList::new);
 	}
 
 	public static <T> Codec<Holder<T>> holder(Supplier<Registry<T>> access, Codec<ResourceLocation> reference, Codec<T> direct) {
@@ -137,14 +173,22 @@ public class CalioCodecHelper {
 	}
 
 	public static <A> PropagatingOptionalFieldCodec<A> optionalField(Codec<A> codec, String name) {
+		Validate.notNull(codec, "Codec cannot be null");
+		Validate.notNull(name, "Name cannot be null");
 		return new PropagatingOptionalFieldCodec<>(name, codec);
 	}
 
 	public static <A> PropagatingDefaultedOptionalFieldCodec<A> optionalField(Codec<A> codec, String name, A defaultValue) {
+		Validate.notNull(codec, "Codec cannot be null");
+		Validate.notNull(name, "Name cannot be null");
+		Validate.notNull(defaultValue, "Default value cannot be null");
 		return new PropagatingDefaultedOptionalFieldCodec<>(name, codec, () -> defaultValue);
 	}
 
 	public static <A> PropagatingDefaultedOptionalFieldCodec<A> optionalField(Codec<A> codec, String name, Supplier<A> defaultValue) {
+		Validate.notNull(codec, "Codec cannot be null");
+		Validate.notNull(name, "Name cannot be null");
+		Validate.notNull(defaultValue, "Default value cannot be null");
 		return new PropagatingDefaultedOptionalFieldCodec<>(name, codec, defaultValue);
 	}
 
@@ -165,6 +209,7 @@ public class CalioCodecHelper {
 		}
 
 		@Override
+		@Nullable
 		public Component fromJson(JsonElement input) {
 			return Component.Serializer.fromJson(input);
 		}
@@ -215,10 +260,6 @@ public class CalioCodecHelper {
 	public static final MapCodec<Vec3> VEC3D = vec3d("x", "y", "z");
 	public static final MapCodec<Vector3f> VEC3F = vec3f("x", "y", "z");
 	public static final MapCodec<BlockPos> BLOCK_POS = blockPos("x", "y", "z");
-
-	public static final Codec<Boolean> BOOL = new BooleanCodec();
-	public static final Codec<Integer> INT = new IntegerCodec();
-	public static final Codec<Double> DOUBLE = new DoubleCodec();
 
 	public static <T> CodecJsonAdapter<T> jsonAdapter(Codec<T> input) {
 		return new CodecJsonAdapter<>(input);
