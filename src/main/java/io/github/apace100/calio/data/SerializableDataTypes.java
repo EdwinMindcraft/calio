@@ -1,7 +1,6 @@
 package io.github.apace100.calio.data;
 
 import com.google.common.collect.HashBiMap;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
@@ -13,7 +12,6 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.SerializationHelper;
 import io.github.apace100.calio.util.ArgumentWrapper;
@@ -23,7 +21,6 @@ import net.minecraft.ResourceLocationException;
 import net.minecraft.commands.arguments.NbtPathArgument;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleType;
@@ -49,7 +46,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
@@ -267,36 +263,36 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<TagKey<EntityType<?>>> ENTITY_TAG = SerializableDataType.tag(Registry.ENTITY_TYPE_REGISTRY);
 
-    public static final SerializableDataType<Ingredient.Value> INGREDIENT_ENTRY = SerializableDataType.compound(ClassUtil.castClass(Ingredient.Value.class),
-        new SerializableData()
-            .add("item", ITEM, null)
-            .add("tag", ITEM_TAG, null),
-        dataInstance -> {
-            boolean tagPresent = dataInstance.isPresent("tag");
-            boolean itemPresent = dataInstance.isPresent("item");
-            if(tagPresent == itemPresent) {
-                throw new JsonParseException("An ingredient entry is either a tag or an item, " + (tagPresent ? "not both" : "one has to be provided."));
-            }
-            if(tagPresent) {
-                TagKey<Item> tag = dataInstance.get("tag");
-                return new Ingredient.TagValue(tag);
-            } else {
-                return new Ingredient.ItemValue(new ItemStack((Item)dataInstance.get("item")));
-            }
-        }, (data, entry) -> data.read(entry.serialize()));
+	public static final SerializableDataType<Ingredient.Value> INGREDIENT_ENTRY = SerializableDataType.compound(ClassUtil.castClass(Ingredient.Value.class),
+			new SerializableData()
+					.add("item", ITEM, null)
+					.add("tag", ITEM_TAG, null),
+			dataInstance -> {
+				boolean tagPresent = dataInstance.isPresent("tag");
+				boolean itemPresent = dataInstance.isPresent("item");
+				if (tagPresent == itemPresent) {
+					throw new JsonParseException("An ingredient entry is either a tag or an item, " + (tagPresent ? "not both" : "one has to be provided."));
+				}
+				if (tagPresent) {
+					TagKey<Item> tag = dataInstance.get("tag");
+					return new Ingredient.TagValue(tag);
+				} else {
+					return new Ingredient.ItemValue(new ItemStack((Item) dataInstance.get("item")));
+				}
+			}, (data, entry) -> data.read(entry.serialize()));
 
-    public static final SerializableDataType<List<Ingredient.Value>> INGREDIENT_ENTRIES = SerializableDataType.list(INGREDIENT_ENTRY);
+	public static final SerializableDataType<List<Ingredient.Value>> INGREDIENT_ENTRIES = SerializableDataType.list(INGREDIENT_ENTRY);
 
-    // An alternative version of an ingredient deserializer which allows `minecraft:air`
-    public static final SerializableDataType<Ingredient> INGREDIENT = new SerializableDataType<>(
-        Ingredient.class,
-        (buffer, ingredient) -> ingredient.toNetwork(buffer),
-        Ingredient::fromNetwork,
-        jsonElement -> {
-            List<Ingredient.Value> entryList = INGREDIENT_ENTRIES.read(jsonElement);
-            return Ingredient.fromValues(entryList.stream());
-        },
-        Ingredient::toJson);
+	// An alternative version of an ingredient deserializer which allows `minecraft:air`
+	public static final SerializableDataType<Ingredient> INGREDIENT = new SerializableDataType<>(
+			Ingredient.class,
+			(buffer, ingredient) -> ingredient.toNetwork(buffer),
+			Ingredient::fromNetwork,
+			jsonElement -> {
+				List<Ingredient.Value> entryList = INGREDIENT_ENTRIES.read(jsonElement);
+				return Ingredient.fromValues(entryList.stream());
+			},
+			Ingredient::toJson);
 
 	// The regular vanilla Minecraft ingredient.
 	public static final SerializableDataType<Ingredient> VANILLA_INGREDIENT = new SerializableDataType<>(
@@ -405,7 +401,7 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<List<Component>> TEXTS = SerializableDataType.list(TEXT);
 
-    public static SerializableDataType<ResourceKey<Level>> DIMENSION = SerializableDataType.registryKey(Registry.DIMENSION_REGISTRY);
+	public static SerializableDataType<ResourceKey<Level>> DIMENSION = SerializableDataType.registryKey(Registry.DIMENSION_REGISTRY);
 
 	// It is theoretically possible to support recipe serialization, but it's a mess.
 	// To do this, we need to keep an additional list functions designed to build RecipeJsonProvider

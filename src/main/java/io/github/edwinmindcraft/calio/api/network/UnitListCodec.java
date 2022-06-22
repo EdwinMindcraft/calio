@@ -4,6 +4,9 @@ import com.google.common.collect.ImmutableList;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.datafixers.util.Unit;
 import com.mojang.serialization.*;
+import com.mojang.serialization.codecs.ListCodec;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtOps;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -19,7 +22,9 @@ public class UnitListCodec<A> implements Codec<List<A>> {
 
 	@Override
 	public <T> DataResult<T> encode(final List<A> input, final DynamicOps<T> ops, final T prefix) {
-		if (input.size() == 1)
+		//NBT needs absolute consistency over the content of lists.
+		//Which means larger packets.
+		if (input.size() == 1 && !(ops instanceof NbtOps))
 			return this.elementCodec.encode(input.get(0), ops, prefix);
 		final ListBuilder<T> builder = ops.listBuilder();
 
