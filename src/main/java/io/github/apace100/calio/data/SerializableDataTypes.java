@@ -10,6 +10,7 @@ import com.google.gson.JsonSyntaxException;
 import com.google.gson.internal.LazilyParsedNumber;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.apace100.calio.Calio;
@@ -48,6 +49,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
@@ -67,6 +69,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import org.apache.commons.lang3.Validate;
 
 import java.util.*;
+import java.util.function.Function;
 
 @SuppressWarnings("unused")
 public final class SerializableDataTypes {
@@ -302,6 +305,10 @@ public final class SerializableDataTypes {
 			Ingredient::fromNetwork,
 			Ingredient::fromJson,
 			Ingredient::toJson);
+
+	//Note: This is ugly, but necessary to support the forge ingredient system.
+	public static final Codec<Ingredient> EITHER_INGREDIENTS = Codec.either(SerializableDataTypes.INGREDIENT, SerializableDataTypes.VANILLA_INGREDIENT)
+			.xmap(x -> x.map(Function.identity(), Function.identity()), x -> x.isVanilla() ? Either.left(x) : Either.right(x));
 
 	public static final SerializableDataType<Block> BLOCK = SerializableDataType.registry(Block.class, ForgeRegistries.BLOCKS);
 

@@ -61,7 +61,7 @@ public class UnitListCodec<A> implements Codec<List<A>> {
 			return decode;
 		//Attempt to write the correct version of the error based on the context.
 		//Lists of lists may be broken.
-		return list.error().isPresent() ? listDecode : decode;
+		return list.error().isPresent() ? decode : listDecode;
 	}
 
 	@Override

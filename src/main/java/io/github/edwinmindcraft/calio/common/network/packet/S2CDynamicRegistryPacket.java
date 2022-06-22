@@ -23,8 +23,7 @@ import java.util.OptionalInt;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
-public abstract class S2CDynamicRegistryPacket<T> {
-
+public abstract sealed class S2CDynamicRegistryPacket<T> permits S2CDynamicRegistryPacket.Login, S2CDynamicRegistryPacket.Play {
 	private final ResourceKey<Registry<T>> key;
 	private final Registry<T> registry;
 	private final Codec<T> codec;
