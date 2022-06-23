@@ -11,7 +11,6 @@ import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Supplier;
 
 public record HolderCodec<A>(Codec<A> direct,
@@ -39,11 +38,11 @@ public record HolderCodec<A>(Codec<A> direct,
 
 	@Override
 	public <T> DataResult<T> encode(Holder<A> input, DynamicOps<T> ops, T prefix) {
-		if (input.kind() == Holder.Kind.REFERENCE) {
-			ResourceLocation key = this.access.get().getKey(input.value());
-			if (key != null)
-				return this.reference.encodeStart(ops, key);
-		}
+		ResourceLocation key = input.unwrapKey().map(ResourceKey::location).orElse(null);
+		if (key == null && input.isBound())
+			key = this.access.get().getKey(input.value());
+		if (key != null)
+			return this.reference.encodeStart(ops, key);
 		return this.direct.encode(input.value(), ops, prefix);
 	}
 }

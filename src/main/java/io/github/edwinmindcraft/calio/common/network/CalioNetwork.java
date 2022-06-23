@@ -11,7 +11,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 public class CalioNetwork {
-	public static final String NETWORK_VERSION = "1.1";
+	public static final String NETWORK_VERSION = "1.2";
 	public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(CalioAPI.resource("channel"), () -> NETWORK_VERSION, NETWORK_VERSION::equals, NETWORK_VERSION::equals);
 
 	private static <T, R> Function<T, R> failsafe(Function<T, R> function) {
