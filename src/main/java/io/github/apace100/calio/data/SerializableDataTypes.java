@@ -76,7 +76,7 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<Boolean> BOOLEAN = new SerializableDataType<>(Boolean.class, CalioCodecHelper.BOOL);
 
-	public static final SerializableDataType<Float> FLOAT = new SerializableDataType<>(Float.class, Codec.FLOAT);
+	public static final SerializableDataType<Float> FLOAT = new SerializableDataType<>(Float.class, CalioCodecHelper.FLOAT);
 
 	public static final SerializableDataType<List<Float>> FLOATS = SerializableDataType.list(FLOAT);
 

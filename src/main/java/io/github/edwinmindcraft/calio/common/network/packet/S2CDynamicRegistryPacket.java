@@ -72,13 +72,12 @@ public abstract sealed class S2CDynamicRegistryPacket<T> permits S2CDynamicRegis
 			buffer.writeWithCodec(codec, entry.value());
 			if (buffer.writerIndex() >= size) {
 				packets.add(builder.apply(key, registry, codec, start, i - start));
-				start = i + 1;
+				start = i;
 				buffer.writerIndex(overhead);
 			}
 		}
 		buffer.release();
-		if (start != references.size())
-			packets.add(builder.apply(key, registry, codec, start, references.size() - start));
+		packets.add(builder.apply(key, registry, codec, start, references.size() - start));
 		return packets;
 	}
 
@@ -107,6 +106,7 @@ public abstract sealed class S2CDynamicRegistryPacket<T> permits S2CDynamicRegis
 					fre.setRegistryName(entry.getKey().location());
 				target.registerOrOverride(OptionalInt.of(this.registry.getId(entry.getValue())), entry.getKey(), entry.getValue(), Lifecycle.experimental());
 			}
+			instance.dump();
 		});
 		if (this instanceof S2CDynamicRegistryPacket.Login<T>)
 			CalioNetwork.CHANNEL.reply(new C2SAcknowledgePacket(), handler.get());

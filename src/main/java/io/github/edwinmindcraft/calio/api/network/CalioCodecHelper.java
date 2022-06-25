@@ -11,6 +11,7 @@ import io.github.apace100.calio.data.SerializableDataTypes;
 import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.api.network.primitives.BooleanCodec;
 import io.github.edwinmindcraft.calio.api.network.primitives.DoubleCodec;
+import io.github.edwinmindcraft.calio.api.network.primitives.FloatCodec;
 import io.github.edwinmindcraft.calio.api.network.primitives.IntegerCodec;
 import net.minecraft.core.*;
 import net.minecraft.network.FriendlyByteBuf;
@@ -45,6 +46,11 @@ public class CalioCodecHelper {
 	 * string to double for json primitives.
 	 */
 	public static final Codec<Double> DOUBLE = new DoubleCodec();
+	/**
+	 * Defines a double codec that support native conversion from
+	 * string to double for json primitives.
+	 */
+	public static final Codec<Float> FLOAT = new FloatCodec();
 
 	/**
 	 * Creates a codec of a registry key, used for dynamic registries (Biomes, Dimensions...)
@@ -235,9 +241,9 @@ public class CalioCodecHelper {
 
 	public static MapCodec<Vector3f> vec3f(String xName, String yName, String zName) {
 		return RecordCodecBuilder.mapCodec(instance -> instance.group(
-				CalioCodecHelper.optionalField(Codec.FLOAT, xName, 0.0F).forGetter(Vector3f::x),
-				CalioCodecHelper.optionalField(Codec.FLOAT, yName, 0.0F).forGetter(Vector3f::y),
-				CalioCodecHelper.optionalField(Codec.FLOAT, zName, 0.0F).forGetter(Vector3f::z)
+				CalioCodecHelper.optionalField(CalioCodecHelper.FLOAT, xName, 0.0F).forGetter(Vector3f::x),
+				CalioCodecHelper.optionalField(CalioCodecHelper.FLOAT, yName, 0.0F).forGetter(Vector3f::y),
+				CalioCodecHelper.optionalField(CalioCodecHelper.FLOAT, zName, 0.0F).forGetter(Vector3f::z)
 		).apply(instance, Vector3f::new));
 	}
 

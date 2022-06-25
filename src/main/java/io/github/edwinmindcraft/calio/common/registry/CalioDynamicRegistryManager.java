@@ -147,6 +147,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 
 	private static <T> void dumpRegistry(Registry<T> reg) {
 		CalioAPI.LOGGER.info("{}: {} entries", reg.key().location(), reg.keySet().size());
+		if (CalioConfig.COMMON.reducedLogging.get()) return;
 		for (ResourceLocation resourceLocation : reg.keySet()) {
 			Optional<Holder<T>> holder = reg.getHolder(ResourceKey.create(reg.key(), resourceLocation)).filter(Holder::isBound);
 			CalioAPI.LOGGER.info("  {}: {}", resourceLocation, holder.map(x -> x.value().toString()).orElse("Missing"));
