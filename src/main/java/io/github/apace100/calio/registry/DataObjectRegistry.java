@@ -6,7 +6,6 @@ import io.github.apace100.calio.data.MultiJsonDataLoader;
 import io.github.apace100.calio.data.SerializableData;
 import io.github.apace100.calio.data.SerializableDataType;
 import io.github.apace100.calio.data.SerializableDataTypes;
-import io.github.apace100.calio.util.OrderedResourceListeners;
 import io.github.edwinmindcraft.calio.common.network.CalioNetwork;
 import io.github.edwinmindcraft.calio.common.network.packet.S2CDataObjectRegistryPacket;
 import io.netty.buffer.Unpooled;
@@ -14,6 +13,7 @@ import net.minecraft.ResourceLocationException;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.util.profiling.ProfilerFiller;
@@ -51,6 +51,8 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 
 	private final Function<JsonElement, JsonElement> jsonPreprocessor;
 
+	private Loader loader;
+
 	private DataObjectRegistry(ResourceLocation registryId, Class<T> objectClass, String factoryFieldName, DataObjectFactory<T> defaultFactory, Function<JsonElement, JsonElement> jsonPreprocessor) {
 		this.registryId = registryId;
 		this.objectClass = objectClass;
@@ -61,8 +63,16 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 
 	private DataObjectRegistry(ResourceLocation registryId, Class<T> objectClass, String factoryFieldName, DataObjectFactory<T> defaultFactory, Function<JsonElement, JsonElement> jsonPreprocessor, String dataFolder, boolean useLoadingPriority, BiConsumer<ResourceLocation, Exception> errorHandler) {
 		this(registryId, objectClass, factoryFieldName, defaultFactory, jsonPreprocessor);
-		Loader loader = new Loader(dataFolder, useLoadingPriority, errorHandler);
-		OrderedResourceListeners.register(loader, registryId).complete();
+		this.loader = new Loader(dataFolder, useLoadingPriority, errorHandler);
+	}
+
+	/**
+	 * Returns the resource reload listener which loads the data from datapacks.
+	 * This is not registered automatically, thus you need to register it, preferably
+	 * in an ordered resource listener entrypoint.
+	 */
+	public PreparableReloadListener getLoader() {
+		return this.loader;
 	}
 
 	public ResourceLocation getRegistryId() {
