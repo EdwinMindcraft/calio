@@ -137,7 +137,7 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 
 	public void writeDataObject(FriendlyByteBuf buf, T t) {
 		DataObjectFactory<T> factory = t.getFactory();
-		buf.writeResourceLocation(this.factoryToId.get(factory));
+		buf.writeResourceLocation(this.getFactoryId(factory));
 		SerializableData.Instance data = factory.toData(t);
 		factory.getData().write(buf, data);
 	}
@@ -187,10 +187,11 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 			} catch (ResourceLocationException e) {
 				throw new JsonParseException("Could not read data object of type \"%s\": invalid factory identifier (id: \"%s\").".formatted(this.registryId, type), e);
 			}
-			if (!this.factoriesById.containsKey(factoryId)) {
+			DataObjectFactory<T> temp = this.getFactory(factoryId);
+			if (temp == null) {
 				throw new JsonParseException("Could not read data object of type \"%s\": unknown factory (id: \"%s\").".formatted(this.registryId, factoryId));
 			}
-			factory = this.getFactory(factoryId);
+			factory = temp;
 		} else {
 			factory = this.defaultFactory.get();
 			if (factory == null)
