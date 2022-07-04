@@ -45,21 +45,12 @@ public class CalioNetwork {
 				.loginIndex(C2SAcknowledgePacket::getLoginIndex, C2SAcknowledgePacket::setLoginIndex)
 				.add();
 
-		/*CHANNEL.messageBuilder(S2CLoginDynamicRegistriesPacket.class, index++, NetworkDirection.LOGIN_TO_CLIENT)
-				.decoder(S2CLoginDynamicRegistriesPacket::decode).encoder(S2CLoginDynamicRegistriesPacket::encode)
-				.consumer(S2CLoginDynamicRegistriesPacket::handle)
-				.loginIndex(S2CLoginDynamicRegistriesPacket::getLoginIndex, S2CLoginDynamicRegistriesPacket::setLoginIndex)
-				.buildLoginPacketList(S2CLoginDynamicRegistriesPacket::createLoginPacket)
-				.add();*/
 		CHANNEL.messageBuilder(S2CDynamicRegistryPacket.Login.class, index++, NetworkDirection.LOGIN_TO_CLIENT)
 				.decoder(failsafe(S2CDynamicRegistryPacket.Login::decode)).encoder(failsafe(S2CDynamicRegistryPacket::encode))
 				.consumer(failsafe(S2CDynamicRegistryPacket::handle))
 				.loginIndex(S2CDynamicRegistryPacket.Login::getLoginIndex, S2CDynamicRegistryPacket.Login::setLoginIndex)
 				.buildLoginPacketList(S2CDynamicRegistryPacket.Login::create).add();
 		//Play
-		/*CHANNEL.messageBuilder(S2CDynamicRegistriesPacket.class, index++, NetworkDirection.PLAY_TO_CLIENT)
-				.decoder(S2CDynamicRegistriesPacket::decode).encoder(S2CDynamicRegistriesPacket::encode)
-				.consumer(S2CDynamicRegistriesPacket::handle).add();*/
 		CHANNEL.messageBuilder(S2CDataObjectRegistryPacket.class, index++, NetworkDirection.PLAY_TO_CLIENT)
 				.decoder(failsafe(S2CDataObjectRegistryPacket::decode)).encoder(failsafe(S2CDataObjectRegistryPacket::encode))
 				.consumer(failsafe(S2CDataObjectRegistryPacket::handle)).add();

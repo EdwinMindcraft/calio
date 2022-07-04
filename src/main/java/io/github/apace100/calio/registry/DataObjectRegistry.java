@@ -18,6 +18,8 @@ import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraftforge.network.PacketDistributor;
+import net.minecraftforge.registries.IForgeRegistry;
+import net.minecraftforge.registries.IForgeRegistryEntry;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -40,7 +42,7 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 	private final HashMap<ResourceLocation, T> staticEntries = new HashMap<>();
 
 	private final String factoryFieldName;
-	private final DataObjectFactory<T> defaultFactory;
+	private final Supplier<DataObjectFactory<T>> defaultFactory;
 	private final HashMap<ResourceLocation, DataObjectFactory<T>> factoriesById = new HashMap<>();
 	private final HashMap<DataObjectFactory<T>, ResourceLocation> factoryToId = new HashMap<>();
 
@@ -53,7 +55,7 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 
 	private Loader loader;
 
-	private DataObjectRegistry(ResourceLocation registryId, Class<T> objectClass, String factoryFieldName, DataObjectFactory<T> defaultFactory, Function<JsonElement, JsonElement> jsonPreprocessor) {
+	private DataObjectRegistry(ResourceLocation registryId, Class<T> objectClass, String factoryFieldName, Supplier<DataObjectFactory<T>> defaultFactory, Function<JsonElement, JsonElement> jsonPreprocessor) {
 		this.registryId = registryId;
 		this.objectClass = objectClass;
 		this.factoryFieldName = factoryFieldName;
@@ -61,7 +63,7 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 		this.jsonPreprocessor = jsonPreprocessor;
 	}
 
-	private DataObjectRegistry(ResourceLocation registryId, Class<T> objectClass, String factoryFieldName, DataObjectFactory<T> defaultFactory, Function<JsonElement, JsonElement> jsonPreprocessor, String dataFolder, boolean useLoadingPriority, BiConsumer<ResourceLocation, Exception> errorHandler) {
+	private DataObjectRegistry(ResourceLocation registryId, Class<T> objectClass, String factoryFieldName, Supplier<DataObjectFactory<T>> defaultFactory, Function<JsonElement, JsonElement> jsonPreprocessor, String dataFolder, boolean useLoadingPriority, BiConsumer<ResourceLocation, Exception> errorHandler) {
 		this(registryId, objectClass, factoryFieldName, defaultFactory, jsonPreprocessor);
 		this.loader = new Loader(dataFolder, useLoadingPriority, errorHandler);
 	}
@@ -84,10 +86,23 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 	}
 
 	public DataObjectFactory<T> getFactory(ResourceLocation id) {
+		//FORGE: Registry takes precedence over native objects if applicable.
+		if (this.forgeRegistryAccess != null) {
+			IForgeRegistry<? extends DataObjectFactory<T>> registry = this.forgeRegistryAccess.get();
+			if (registry != null && registry.containsKey(id))
+				return registry.getValue(id);
+		}
 		return this.factoriesById.get(id);
 	}
 
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	public ResourceLocation getFactoryId(DataObjectFactory<T> factory) {
+		//FORGE: Registry takes precedence over native objects if applicable.
+		if (this.forgeRegistryAccess != null && factory instanceof IForgeRegistryEntry<?> fre) {
+			IForgeRegistry registry = this.forgeRegistryAccess.get();
+			if (registry != null && registry.containsValue(fre))
+				return registry.getKey(fre);
+		}
 		return this.factoryToId.get(factory);
 	}
 
@@ -157,34 +172,29 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 			element = this.jsonPreprocessor.apply(element);
 		}
 		if (!element.isJsonObject()) {
-			throw new JsonParseException(
-					"Could not read data object of type \"" + this.registryId +
-					"\": expected a json object.");
+			throw new JsonParseException("Could not read data object of type \"%s\": expected a json object.".formatted(this.registryId));
 		}
 		JsonObject jsonObject = element.getAsJsonObject();
 		if (!jsonObject.has(this.factoryFieldName) && this.defaultFactory == null) {
-			throw new JsonParseException("Could not read data object of type \"" + this.registryId +
-										 "\": no factory identifier provided (expected key: \"" + this.factoryFieldName + "\").");
+			throw new JsonParseException("Could not read data object of type \"%s\": no factory identifier provided (expected key: \"%s\").".formatted(this.registryId, this.factoryFieldName));
 		}
 		DataObjectFactory<T> factory;
 		if (jsonObject.has(this.factoryFieldName)) {
 			String type = GsonHelper.getAsString(jsonObject, this.factoryFieldName);
-			ResourceLocation factoryId = null;
+			ResourceLocation factoryId;
 			try {
 				factoryId = new ResourceLocation(type);
 			} catch (ResourceLocationException e) {
-				throw new JsonParseException(
-						"Could not read data object of type \"" + this.registryId +
-						"\": invalid factory identifier (id: \"" + factoryId + "\").", e);
+				throw new JsonParseException("Could not read data object of type \"%s\": invalid factory identifier (id: \"%s\").".formatted(this.registryId, type), e);
 			}
 			if (!this.factoriesById.containsKey(factoryId)) {
-				throw new JsonParseException(
-						"Could not read data object of type \"" + this.registryId +
-						"\": unknown factory (id: \"" + factoryId + "\").");
+				throw new JsonParseException("Could not read data object of type \"%s\": unknown factory (id: \"%s\").".formatted(this.registryId, factoryId));
 			}
 			factory = this.getFactory(factoryId);
 		} else {
-			factory = this.defaultFactory;
+			factory = this.defaultFactory.get();
+			if (factory == null)
+				throw new JsonParseException("Could not read data object of type \"%s\": default factory was missing.".formatted(this.registryId));
 		}
 		SerializableData.Instance data = factory.getData().read(jsonObject);
 		return factory.fromData(data);
@@ -325,7 +335,7 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 		private final Class<T> objectClass;
 		private String factoryFieldName = "type";
 		private boolean autoSync = false;
-		private DataObjectFactory<T> defaultFactory;
+		private Supplier<DataObjectFactory<T>> defaultFactory;
 		private Function<JsonElement, JsonElement> jsonPreprocessor;
 		private String dataFolder;
 		private boolean readFromData = false;
@@ -346,7 +356,12 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 		}
 
 		public Builder<T> defaultFactory(DataObjectFactory<T> factory) {
-			this.defaultFactory = factory;
+			this.defaultFactory = () -> factory;
+			return this;
+		}
+
+		public Builder<T> defaultFactory(Supplier<? extends DataObjectFactory<T>> factory) {
+			this.defaultFactory = factory::get;
 			return this;
 		}
 
@@ -385,5 +400,13 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 			}
 			return registry;
 		}
+	}
+
+	//FORGE: Registry backing
+	private Supplier<IForgeRegistry<? extends DataObjectFactory<T>>> forgeRegistryAccess;
+
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	public <V extends IForgeRegistryEntry<V> & DataObjectFactory<T>> void setForgeRegistryAccess(Supplier<IForgeRegistry<V>> forgeRegistryAccess) {
+		this.forgeRegistryAccess = (Supplier) forgeRegistryAccess;
 	}
 }
