@@ -10,7 +10,6 @@ import io.github.edwinmindcraft.calio.common.registry.CalioDynamicRegistryManage
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -97,7 +96,7 @@ public class CalioEventHandler {
 		if (!event.getFlags().isAdvanced() && itemStack.is(Items.FILLED_MAP)) {
 			Integer integer = MapItem.getMapId(itemStack);
 			if (integer != null)
-				toolTip.add(1, (new TextComponent("#" + integer)).withStyle(ChatFormatting.GRAY));
+				toolTip.add(1, (Component.literal("#" + integer)).withStyle(ChatFormatting.GRAY));
 		}
 	}
 }

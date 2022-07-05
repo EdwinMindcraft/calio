@@ -1,9 +1,8 @@
 package io.github.edwinmindcraft.calio.api.ability;
 
 import net.minecraft.world.entity.player.Player;
-import net.minecraftforge.registries.ForgeRegistryEntry;
 
-public abstract class PlayerAbility extends ForgeRegistryEntry<PlayerAbility> {
+public abstract class PlayerAbility {
 	public PlayerAbility() {
 	}
 

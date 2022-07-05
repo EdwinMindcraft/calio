@@ -20,17 +20,19 @@ import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.api.network.CalioCodecHelper;
 import io.github.edwinmindcraft.calio.api.network.EnumValueCodec;
 import io.netty.buffer.Unpooled;
+import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.tags.Tag;
 import net.minecraft.tags.TagKey;
-import net.minecraftforge.registries.ForgeRegistryEntry;
 import net.minecraftforge.registries.IForgeRegistry;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -92,12 +94,12 @@ public class SerializableDataType<T> implements Codec<T> {
 		return wrap(dataClass, SerializableDataTypes.IDENTIFIER, registry::getKey, id -> registry.getOptional(id).orElseThrow(() -> new RuntimeException("Identifier \"" + id + "\" was not registered in registry \"" + registry.key().location() + "\".")));
 	}
 
-	public static <T extends ForgeRegistryEntry<T>> SerializableDataType<T> registry(Class<T> dataClass, IForgeRegistry<T> registry) {
+	public static <T> SerializableDataType<T> registry(Class<T> dataClass, IForgeRegistry<T> registry) {
 		return wrap(dataClass, SerializableDataTypes.IDENTIFIER, registry::getKey, id -> {
-			T value = registry.getValue(id);
-			if (value == null || !Objects.equals(id, value.getRegistryName()))
+			Optional<Holder.Reference<T>> delegate = registry.getDelegate(id).filter(Holder::isBound);
+			if (delegate.isEmpty())
 				throw new RuntimeException("Identifier \"" + id + "\" was not registered in registry \"" + registry.getRegistryName() + "\".");
-			return value;
+			return delegate.get().value();
 		});
 	}
 
@@ -132,7 +134,7 @@ public class SerializableDataType<T> implements Codec<T> {
 	}
 
 	public static <T> SerializableDataType<TagKey<T>> tag(ResourceKey<? extends Registry<T>> registryKey) {
-		return SerializableDataType.wrap(ClassUtil.castClass(Tag.class), SerializableDataTypes.IDENTIFIER,
+		return SerializableDataType.wrap(ClassUtil.castClass(TagKey.class), SerializableDataTypes.IDENTIFIER,
 				TagKey::location,
 				id -> TagKey.create(registryKey, id));
 	}

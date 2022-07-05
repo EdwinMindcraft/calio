@@ -27,8 +27,7 @@ public record HolderCodec<A>(Codec<A> direct,
 		if (stringValue.result().isPresent()) {
 			ResourceLocation id = stringValue.result().get();
 			ResourceKey<A> key = ResourceKey.create(this.access.get().key(), id);
-			Holder<A> holder = this.access.get().getOrCreateHolder(key);
-			return DataResult.success(Pair.of(holder, ops.empty()));
+			return this.access.get().getOrCreateHolder(key).map(holder -> Pair.of(holder, ops.empty()));
 		} else if (stringValue.error().isPresent())
 			errors.add(stringValue.error().get().message());
 		DataResult<Pair<Holder<A>, T>> decode = this.direct.decode(ops, input).map(pair -> pair.mapFirst(Holder::direct));

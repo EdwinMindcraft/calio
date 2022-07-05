@@ -95,7 +95,7 @@ public class SerializationHelper {
 
 	public static JsonElement writeStatusEffect(MobEffectInstance instance) {
 		JsonObject object = new JsonObject();
-		ResourceLocation registryName = instance.getEffect().getRegistryName();
+		ResourceLocation registryName = ForgeRegistries.MOB_EFFECTS.getKey(instance.getEffect());
 		Validate.notNull(registryName, "Unregistered mob effect: %s", instance.getEffect());
 		object.addProperty("effect", registryName.toString());
 		object.addProperty("duration", instance.getDuration());
@@ -119,7 +119,7 @@ public class SerializationHelper {
 	}
 
 	public static void writeStatusEffect(FriendlyByteBuf buf, MobEffectInstance statusEffectInstance) {
-		ResourceLocation registryName = statusEffectInstance.getEffect().getRegistryName();
+		ResourceLocation registryName = ForgeRegistries.MOB_EFFECTS.getKey(statusEffectInstance.getEffect());
 		Validate.notNull(registryName, "Unregistered mob effect: %s".formatted(statusEffectInstance.getEffect()));
 		buf.writeResourceLocation(registryName);
 		buf.writeInt(statusEffectInstance.getDuration());

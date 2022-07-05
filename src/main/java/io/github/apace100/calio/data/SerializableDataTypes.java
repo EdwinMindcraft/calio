@@ -312,7 +312,7 @@ public final class SerializableDataTypes {
 			BlockStateParser::serialize,
 			string -> {
 				try {
-					return (new BlockStateParser(new StringReader(string), false)).parse(false).getState();
+					return BlockStateParser.parseForBlock(Registry.BLOCK, new StringReader(string), false).blockState();
 				} catch (CommandSyntaxException e) {
 					throw new JsonParseException(e);
 				}
@@ -410,7 +410,7 @@ public final class SerializableDataTypes {
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public static final SerializableDataType<Recipe> RECIPE = new SerializableDataType<>(Recipe.class,
 			(buffer, recipe) -> {
-				ResourceLocation serializerName = recipe.getSerializer().getRegistryName();
+				ResourceLocation serializerName = ForgeRegistries.RECIPE_SERIALIZERS.getKey(recipe.getSerializer());
 				Validate.notNull(serializerName, "Recipe serializer %s was not registered.".formatted(recipe.getSerializer()));
 				buffer.writeResourceLocation(serializerName);
 				buffer.writeResourceLocation(recipe.getId());

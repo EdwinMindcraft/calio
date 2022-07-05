@@ -21,7 +21,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.registries.IForgeRegistry;
-import net.minecraftforge.registries.IForgeRegistryEntry;
 import org.apache.commons.lang3.Validate;
 import org.jetbrains.annotations.Nullable;
 
@@ -120,11 +119,13 @@ public class CalioCodecHelper {
 	 * Create a representation of a list with a single field and a list field.
 	 * Both are effectively interchangeable in the implementation to not make
 	 * the system more complicated for the end user.
-	 * @param codec
-	 * @param singular
-	 * @param plural
-	 * @return
-	 * @param <T>
+	 *
+	 * @param codec    The codec to create a list of
+	 * @param singular The singular term for the field
+	 * @param plural   The plural term for the field
+	 * @param <T>      The type of the element of the list.
+	 *
+	 * @return The created codec
 	 */
 	public static <T> MapCodec<List<T>> listOf(Codec<T> codec, String singular, String plural) {
 		Validate.notNull(codec, "Codec cannot be null");
@@ -161,7 +162,7 @@ public class CalioCodecHelper {
 
 	public static <T> CodecSet<T> codecSet(Supplier<Registry<T>> access, ResourceKey<Registry<T>> key, Codec<ResourceLocation> reference, Codec<T> direct) {
 		Codec<Holder<T>> holder = holder(access, reference, direct);
-		Codec<Holder<T>> holderRef = reference.flatComapMap(id -> access.get().getOrCreateHolder(ResourceKey.create(key, id)), h -> h.unwrap().map(x -> DataResult.success(x.location()), t -> access.get().getResourceKey(t).map(ResourceKey::location).map(DataResult::success).orElseGet(() -> DataResult.error("Key not in registry."))));
+		Codec<Holder<T>> holderRef = reference.flatXmap(id -> access.get().getOrCreateHolder(ResourceKey.create(key, id)), h -> h.unwrap().map(x -> DataResult.success(x.location()), t -> access.get().getResourceKey(t).map(ResourceKey::location).map(DataResult::success).orElseGet(() -> DataResult.error("Key not in registry."))));
 		Codec<TagKey<T>> directTag = reference.xmap(location -> TagKey.create(key, location), TagKey::location);
 		//FIXME Add support for * operator.
 		Codec<TagKey<T>> hashedTag = Codec.STRING.comapFlatMap(string -> string.startsWith("#") ?
@@ -198,12 +199,12 @@ public class CalioCodecHelper {
 		return new PropagatingDefaultedOptionalFieldCodec<>(name, codec, defaultValue);
 	}
 
-	public static <A extends IForgeRegistryEntry<A>> PropagatingDefaultedOptionalFieldCodec<Holder<A>> registryDefaultedField(Codec<Holder<A>> codec, String name, ResourceKey<Registry<A>> registry, Supplier<IForgeRegistry<A>> builtin) {
+	public static <A> PropagatingDefaultedOptionalFieldCodec<Holder<A>> registryDefaultedField(Codec<Holder<A>> codec, String name, ResourceKey<Registry<A>> registry, Supplier<IForgeRegistry<A>> builtin) {
 		Supplier<Holder<A>> supplier = () -> CalioAPI.getDynamicRegistries().get(registry) instanceof DefaultedRegistry<A> def ? def.getHolderOrThrow(ResourceKey.create(registry, def.getDefaultKey())) : builtin.get().getHolder(builtin.get().getDefaultKey()).orElseThrow();
 		return optionalField(codec, name, supplier);
 	}
 
-	public static <A extends IForgeRegistryEntry<A>> PropagatingDefaultedOptionalFieldCodec<Holder<A>> registryField(Codec<Holder<A>> codec, String name, ResourceKey<A> value, ResourceKey<Registry<A>> registry, Supplier<IForgeRegistry<A>> builtin) {
+	public static <A> PropagatingDefaultedOptionalFieldCodec<Holder<A>> registryField(Codec<Holder<A>> codec, String name, ResourceKey<A> value, ResourceKey<Registry<A>> registry, Supplier<IForgeRegistry<A>> builtin) {
 		Supplier<Holder<A>> supplier = () -> CalioAPI.getDynamicRegistries().get(registry) instanceof DefaultedRegistry<A> def ? def.getHolderOrThrow(value) : builtin.get().getHolder(value).orElseThrow();
 		return optionalField(codec, name, supplier);
 	}

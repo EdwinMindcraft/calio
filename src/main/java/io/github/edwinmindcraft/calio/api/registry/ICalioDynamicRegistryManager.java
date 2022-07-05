@@ -10,7 +10,6 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.minecraftforge.registries.IForgeRegistry;
-import net.minecraftforge.registries.IForgeRegistryEntry;
 import org.apache.commons.lang3.Validate;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -44,7 +43,7 @@ public interface ICalioDynamicRegistryManager extends PreparableReloadListener {
 	 *                dynamic registry.
 	 * @param codec   The codec used to send the data from the client to the server.
 	 */
-	default <T extends IForgeRegistryEntry<T>> void addForge(@NotNull ResourceKey<Registry<T>> key, @NotNull Supplier<IForgeRegistry<T>> builtin, Codec<T> codec) {
+	default <T> void addForge(@NotNull ResourceKey<Registry<T>> key, @NotNull Supplier<IForgeRegistry<T>> builtin, Codec<T> codec) {
 		Validate.notNull(builtin, "Registry " + key.location() + " has no builtin, use add instead.");
 		this.add(key, consumer -> builtin.get().getEntries().forEach(entry -> consumer.accept(entry.getKey(), entry.getValue())), codec, () -> builtin.get().getDefaultKey());
 	}

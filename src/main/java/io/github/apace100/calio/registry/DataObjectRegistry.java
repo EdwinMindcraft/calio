@@ -19,7 +19,6 @@ import net.minecraft.util.GsonHelper;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.registries.IForgeRegistry;
-import net.minecraftforge.registries.IForgeRegistryEntry;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -98,10 +97,10 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public ResourceLocation getFactoryId(DataObjectFactory<T> factory) {
 		//FORGE: Registry takes precedence over native objects if applicable.
-		if (this.forgeRegistryAccess != null && factory instanceof IForgeRegistryEntry<?> fre) {
+		if (this.forgeRegistryAccess != null) {
 			IForgeRegistry registry = this.forgeRegistryAccess.get();
-			if (registry != null && registry.containsValue(fre))
-				return registry.getKey(fre);
+			if (registry != null && registry.containsValue(factory))
+				return registry.getKey(factory);
 		}
 		return this.factoryToId.get(factory);
 	}
@@ -407,7 +406,7 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 	private Supplier<IForgeRegistry<? extends DataObjectFactory<T>>> forgeRegistryAccess;
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
-	public <V extends IForgeRegistryEntry<V> & DataObjectFactory<T>> void setForgeRegistryAccess(Supplier<IForgeRegistry<V>> forgeRegistryAccess) {
+	public <V extends DataObjectFactory<T>> void setForgeRegistryAccess(Supplier<IForgeRegistry<V>> forgeRegistryAccess) {
 		this.forgeRegistryAccess = (Supplier) forgeRegistryAccess;
 	}
 }

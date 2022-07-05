@@ -20,6 +20,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -99,7 +100,7 @@ public class AbilityHolder implements ICapabilitySerializable<Tag>, IAbilityHold
 			for (ResourceLocation resourceLocation : this.abilities.get(key)) {
 				ls.add(StringTag.valueOf(resourceLocation.toString()));
 			}
-			tag.put(key.getRegistryName().toString(), ls);
+			tag.put(Objects.requireNonNull(PlayerAbilities.REGISTRY.get().getKey(key)).toString(), ls);
 		}
 		return tag;
 	}

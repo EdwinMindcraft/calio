@@ -3,6 +3,7 @@ package io.github.apace100.calio.data;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
+import net.minecraft.data.CachedOutput;
 import net.minecraft.data.DataGenerator;
 import net.minecraft.data.DataProvider;
 import net.minecraft.data.HashCache;
@@ -51,11 +52,11 @@ public abstract class JsonDataProvider<T> implements DataProvider {
 	}
 
 	@Override
-	public void run(@NotNull HashCache cache) throws IOException {
+	public void run(@NotNull CachedOutput cache) throws IOException {
 		this.populate();
 		this.validate();
 		for (Map.Entry<ResourceLocation, T> entry : this.objects.entrySet()) {
-			DataProvider.save(GSON, cache, this.asJson(entry.getValue()), this.getPath(entry.getKey()));
+			DataProvider.saveStable(cache, this.asJson(entry.getValue()), this.getPath(entry.getKey()));
 		}
 	}
 

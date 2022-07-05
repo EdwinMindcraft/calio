@@ -12,7 +12,7 @@ public class CalioRegisters {
 
 	public static void register(IEventBus bus) {
 		//Note for myself: Always call makeRegistry before register.
-		PlayerAbilities.REGISTRY = PLAYER_ABILITIES.makeRegistry(PlayerAbility.class, () -> new RegistryBuilder<PlayerAbility>().disableSaving());
+		PlayerAbilities.REGISTRY = PLAYER_ABILITIES.makeRegistry(() -> new RegistryBuilder<PlayerAbility>().disableSaving());
 
 		PLAYER_ABILITIES.register(bus);
 	}

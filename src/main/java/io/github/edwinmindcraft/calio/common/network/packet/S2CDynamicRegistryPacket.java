@@ -14,7 +14,6 @@ import net.minecraft.core.WritableRegistry;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
 import net.minecraftforge.network.NetworkEvent;
-import net.minecraftforge.registries.IForgeRegistryEntry;
 import net.minecraftforge.server.ServerLifecycleHooks;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -101,11 +100,8 @@ public abstract sealed class S2CDynamicRegistryPacket<T> permits S2CDynamicRegis
 		handler.get().enqueueWork(() -> {
 			CalioDynamicRegistryManager instance = CalioDynamicRegistryManager.getInstance(null);
 			WritableRegistry<T> target = this.start == 0 ? instance.reset(this.key) : instance.get(this.key);
-			for (Map.Entry<ResourceKey<T>, T> entry : this.registry.entrySet()) {
-				if (entry.getValue() instanceof IForgeRegistryEntry<?> fre)
-					fre.setRegistryName(entry.getKey().location());
+			for (Map.Entry<ResourceKey<T>, T> entry : this.registry.entrySet())
 				target.registerOrOverride(OptionalInt.of(this.registry.getId(entry.getValue())), entry.getKey(), entry.getValue(), Lifecycle.experimental());
-			}
 			instance.dump();
 		});
 		if (this instanceof S2CDynamicRegistryPacket.Login<T>)
