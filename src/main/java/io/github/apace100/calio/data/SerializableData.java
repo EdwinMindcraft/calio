@@ -45,39 +45,11 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 	}
 
 	public void write(FriendlyByteBuf buffer, Instance instance) {
-		this.dataFields.forEach((name, field) -> {
-			try {
-				boolean isPresent = instance.get(name) != null;
-				if (field.hasDefault && field.defaultValue == null) {
-					buffer.writeBoolean(isPresent);
-				}
-				if (isPresent) {
-					field.dataType.send(buffer, instance.get(name));
-				}
-			} catch (DataException e) {
-				throw e.prepend(name);
-			} catch (Exception e) {
-				throw new DataException(DataException.Phase.WRITING, name, e);
-			}
-		});
+		buffer.writeWithCodec(this.codec(), instance);
 	}
 
 	public Instance read(FriendlyByteBuf buffer) {
-		Instance instance = new Instance();
-		this.dataFields.forEach((name, field) -> {
-			try {
-				boolean isPresent = true;
-				if (field.hasDefault && field.defaultValue == null) {
-					isPresent = buffer.readBoolean();
-				}
-				instance.set(name, isPresent ? field.dataType.receive(buffer) : null);
-			} catch (DataException e) {
-				throw e.prepend(name);
-			} catch (Exception e) {
-				throw new DataException(DataException.Phase.RECEIVING, name, e);
-			}
-		});
-		return instance;
+		return buffer.readWithCodec(this.codec());
 	}
 
 	public Instance read(JsonObject jsonObject) {

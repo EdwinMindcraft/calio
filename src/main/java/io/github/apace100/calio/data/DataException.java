@@ -4,12 +4,12 @@ import java.util.Locale;
 
 public class DataException extends RuntimeException {
 
-	private Phase phase;
+	private final Phase phase;
 	private String path;
 	private final Exception exception;
 
 	public DataException(Phase phase, String path, Exception exception) {
-		super("Error " + phase.name().toLowerCase(Locale.ROOT) + " data field");
+		super("Error " + phase.name().toLowerCase(Locale.ROOT) + " data field", exception);
 		this.phase = phase;
 		this.path = path;
 		this.exception = exception;
@@ -22,7 +22,7 @@ public class DataException extends RuntimeException {
 
 	@Override
 	public String getMessage() {
-		return super.getMessage() + " at " + path + ": " + exception.getMessage();
+		return super.getMessage() + " at " + this.path + ": " + this.exception.getMessage();
 	}
 
 	public enum Phase {

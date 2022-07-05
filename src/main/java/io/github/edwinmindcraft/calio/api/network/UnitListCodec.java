@@ -26,21 +26,24 @@ public class UnitListCodec<A> implements Codec<List<A>> {
 		//Which means larger packets.
 		if (input.size() == 1 && !(ops instanceof NbtOps))
 			return this.elementCodec.encode(input.get(0), ops, prefix);
+		DataResult<T> result = DataResult.error("Failed to serialize list.");
 		try {
 			final ListBuilder<T> builder = ops.listBuilder();
-
 			for (final A a : input) {
 				builder.add(this.elementCodec.encodeStart(ops, a));
 			}
-			return builder.build(prefix);
+			result = builder.build(prefix);
 		} catch (Exception e) {
 			//NBT Catch-all, if anything breaks above, just consider it a list.
 			//This is significantly slower, but I don't really care at this point.
+		}
+		if (result.result().isEmpty()) {
 			final RecordBuilder<T> builder = ops.mapBuilder();
 			for (int i = 0; i < input.size(); i++)
 				builder.add(Integer.toString(i), this.elementCodec.encodeStart(ops, input.get(i)));
-			return builder.build(prefix);
+			result = builder.build(prefix);
 		}
+		return result;
 	}
 
 	@Override
