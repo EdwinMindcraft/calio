@@ -162,7 +162,13 @@ public class CalioCodecHelper {
 
 	public static <T> CodecSet<T> codecSet(Supplier<Registry<T>> access, ResourceKey<Registry<T>> key, Codec<ResourceLocation> reference, Codec<T> direct) {
 		Codec<Holder<T>> holder = holder(access, reference, direct);
-		Codec<Holder<T>> holderRef = reference.flatXmap(id -> access.get().getOrCreateHolder(ResourceKey.create(key, id)), h -> h.unwrap().map(x -> DataResult.success(x.location()), t -> access.get().getResourceKey(t).map(ResourceKey::location).map(DataResult::success).orElseGet(() -> DataResult.error("Key not in registry."))));
+		Codec<Holder<T>> holderRef = reference.flatXmap(id -> access.get().getOrCreateHolder(ResourceKey.create(key, id)), h -> {
+			try {
+				return h.unwrap().map(x -> DataResult.success(x.location()), t -> access.get().getResourceKey(t).map(ResourceKey::location).map(DataResult::success).orElseGet(() -> DataResult.error("Key not in registry.")));
+			} catch (IllegalStateException e) {
+				return DataResult.error("Completely unbound input.");
+			}
+		});
 		Codec<TagKey<T>> directTag = reference.xmap(location -> TagKey.create(key, location), TagKey::location);
 		//FIXME Add support for * operator.
 		Codec<TagKey<T>> hashedTag = Codec.STRING.comapFlatMap(string -> string.startsWith("#") ?

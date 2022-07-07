@@ -24,6 +24,7 @@ import net.minecraft.core.*;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.util.profiling.ProfilerFiller;
@@ -32,14 +33,13 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.registries.IForgeRegistryEntry;
 import org.apache.commons.lang3.Validate;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.*;
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
+import java.io.Reader;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -161,8 +161,6 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 			if (validator != null)
 				t = validator.validate(resourceKey, t, this);
 			if (t != null) {
-				if (t instanceof IForgeRegistryEntry<?> re && re.getRegistryName() == null) //This ensures that get registry name is always valid.
-					re.setRegistryName(location);
 				registry.register(resourceKey, t, Lifecycle.experimental());
 			}
 		});
@@ -220,8 +218,6 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		for (int i = 0; i < count; i++) {
 			ResourceKey<T> objectKey = ResourceKey.create(key, buffer.readResourceLocation());
 			T decode = buffer.readWithCodec(codec);
-			if (decode instanceof IForgeRegistryEntry<?> fre)
-				fre.setRegistryName(objectKey.location());
 			registry.registerOrOverride(OptionalInt.empty(), objectKey, decode, Lifecycle.stable());
 		}
 	}
@@ -338,40 +334,31 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 			Map<ResourceLocation, List<JsonElement>> map = Maps.newHashMap();
 			int i = this.directory().length() + 1;
 			Set<String> resourcesHandled = new HashSet<>();
-			for (ResourceLocation identifier : resourceManager.listResources(this.directory(), (stringx) -> stringx.endsWith(".json"))) {
+			for (Map.Entry<ResourceLocation, List<Resource>> entry : resourceManager.listResourceStacks(this.directory(), rl -> rl.getPath().endsWith(".json")).entrySet()) {
+				ResourceLocation identifier = entry.getKey();
 				String string = identifier.getPath();
 				ResourceLocation identifier2 = new ResourceLocation(identifier.getNamespace(), string.substring(i, string.length() - FILE_SUFFIX_LENGTH));
 				resourcesHandled.clear();
-				try {
-					resourceManager.getResources(identifier).forEach(resource -> {
-						if (!resourcesHandled.contains(resource.getSourceName())) {
-							resourcesHandled.add(resource.getSourceName());
-							try {
-								try (resource) {
-									try (InputStream inputStream = resource.getInputStream()) {
-										try (Reader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
-											JsonElement jsonElement = GsonHelper.fromJson(GSON, reader, JsonElement.class);
-											if (jsonElement != null) {
-												if (map.containsKey(identifier2)) {
-													map.get(identifier2).add(jsonElement);
-												} else {
-													List<JsonElement> elementList = new LinkedList<>();
-													elementList.add(jsonElement);
-													map.put(identifier2, elementList);
-												}
-											} else {
-												CalioAPI.LOGGER.error("Couldn't load data file {} from {} as it's null or empty", identifier2, identifier);
-											}
-										}
-									}
+				for (Resource resource : entry.getValue()) {
+					if (!resourcesHandled.contains(resource.sourcePackId())) {
+						resourcesHandled.add(resource.sourcePackId());
+						try (Reader reader = resource.openAsReader()) {
+							JsonElement jsonElement = GsonHelper.fromJson(GSON, reader, JsonElement.class);
+							if (jsonElement != null) {
+								if (map.containsKey(identifier2)) {
+									map.get(identifier2).add(jsonElement);
+								} else {
+									List<JsonElement> elementList = new LinkedList<>();
+									elementList.add(jsonElement);
+									map.put(identifier2, elementList);
 								}
-							} catch (IllegalArgumentException | IOException | JsonParseException var68) {
-								CalioAPI.LOGGER.error("Couldn't parse data file {} from {}", identifier2, identifier, var68);
+							} else {
+								CalioAPI.LOGGER.error("Couldn't load data file {} from {} as it's null or empty", identifier2, identifier);
 							}
+						} catch (IllegalArgumentException | IOException | JsonParseException var68) {
+							CalioAPI.LOGGER.error("Couldn't parse data file {} from {}", identifier2, identifier, var68);
 						}
-					});
-				} catch (IOException e) {
-					CalioAPI.LOGGER.error("Couldn't parse data file {} from {}", identifier2, identifier, e);
+					}
 				}
 			}
 
