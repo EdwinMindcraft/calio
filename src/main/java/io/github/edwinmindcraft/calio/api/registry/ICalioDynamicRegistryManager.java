@@ -11,6 +11,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.minecraftforge.registries.IForgeRegistry;
 import org.apache.commons.lang3.Validate;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -132,6 +133,7 @@ public interface ICalioDynamicRegistryManager extends PreparableReloadListener {
 	 * @throws IllegalArgumentException if no registry matches the given key.
 	 * @see #getOrEmpty(ResourceKey) for the null-safe version.
 	 */
+	@Contract(pure = true)
 	@NotNull <T> WritableRegistry<T> get(@NotNull ResourceKey<Registry<T>> key);
 
 	/**
