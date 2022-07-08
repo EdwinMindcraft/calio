@@ -160,15 +160,24 @@ public class CalioCodecHelper {
 		return new HolderSetCodec<>(access, holder, tag);
 	}
 
-	public static <T> CodecSet<T> codecSet(Supplier<Registry<T>> access, ResourceKey<Registry<T>> key, Codec<ResourceLocation> reference, Codec<T> direct) {
-		Codec<Holder<T>> holder = holder(access, reference, direct);
-		Codec<Holder<T>> holderRef = reference.flatXmap(id -> access.get().getOrCreateHolder(ResourceKey.create(key, id)), h -> {
+	public static <T> Codec<Holder<T>> holderRef(Supplier<Registry<T>> access, ResourceKey<Registry<T>> key, Codec<ResourceLocation> reference) {
+		return reference.flatXmap(id -> access.get().getOrCreateHolder(ResourceKey.create(key, id)), h -> {
 			try {
 				return h.unwrap().map(x -> DataResult.success(x.location()), t -> access.get().getResourceKey(t).map(ResourceKey::location).map(DataResult::success).orElseGet(() -> DataResult.error("Key not in registry.")));
 			} catch (IllegalStateException e) {
 				return DataResult.error("Completely unbound input.");
 			}
 		});
+	}
+
+	public static <T> Codec<Holder<T>> holderRef(ResourceKey<Registry<T>> key, Codec<ResourceLocation> reference) {
+		Supplier<Registry<T>> supplier = () -> CalioAPI.getDynamicRegistries().get(key);
+		return holderRef(supplier, key, reference);
+	}
+
+	public static <T> CodecSet<T> codecSet(Supplier<Registry<T>> access, ResourceKey<Registry<T>> key, Codec<ResourceLocation> reference, Codec<T> direct) {
+		Codec<Holder<T>> holder = holder(access, reference, direct);
+		Codec<Holder<T>> holderRef = holderRef(access, key, reference);
 		Codec<TagKey<T>> directTag = reference.xmap(location -> TagKey.create(key, location), TagKey::location);
 		//FIXME Add support for * operator.
 		Codec<TagKey<T>> hashedTag = Codec.STRING.comapFlatMap(string -> string.startsWith("#") ?
