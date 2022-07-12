@@ -15,6 +15,7 @@ import io.github.edwinmindcraft.calio.api.event.CalioDynamicRegistryEvent;
 import io.github.edwinmindcraft.calio.api.event.DynamicRegistrationEvent;
 import io.github.edwinmindcraft.calio.api.registry.DynamicEntryFactory;
 import io.github.edwinmindcraft.calio.api.registry.DynamicEntryValidator;
+import io.github.edwinmindcraft.calio.api.registry.DynamicRegistryListener;
 import io.github.edwinmindcraft.calio.api.registry.ICalioDynamicRegistryManager;
 import io.github.edwinmindcraft.calio.client.util.ClientHelper;
 import io.github.edwinmindcraft.calio.common.CalioConfig;
@@ -122,6 +123,12 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 			for (ResourceKey<?> resourceKey : this.validatorOrder) {
 				this.validate((ResourceKey) resourceKey, (Validator) this.validators.get(resourceKey), (Map) map.get(resourceKey));
 			}
+			for (MappedRegistry<?> value : this.registries.values()) {
+				value.holders().filter(Holder::isBound).forEach(obj -> {
+					if (obj instanceof DynamicRegistryListener drl)
+						drl.whenAvailable(this);
+				});
+			}
 			MinecraftForge.EVENT_BUS.post(new CalioDynamicRegistryEvent.LoadComplete(this));
 			this.dump();
 		}, executor);
@@ -161,6 +168,8 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 			if (validator != null)
 				t = validator.validate(resourceKey, t, this);
 			if (t != null) {
+				if (t instanceof DynamicRegistryListener drl)
+					drl.whenNamed(location);
 				registry.register(resourceKey, t, Lifecycle.experimental());
 			}
 		});

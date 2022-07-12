@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.Lifecycle;
 import io.github.edwinmindcraft.calio.api.CalioAPI;
+import io.github.edwinmindcraft.calio.api.registry.DynamicRegistryListener;
 import io.github.edwinmindcraft.calio.common.network.CalioNetwork;
 import io.github.edwinmindcraft.calio.common.registry.CalioDynamicRegistryManager;
 import io.netty.buffer.Unpooled;
@@ -91,6 +92,8 @@ public abstract sealed class S2CDynamicRegistryPacket<T> permits S2CDynamicRegis
 			int index = buffer.readInt();
 			ResourceKey<T> key = ResourceKey.create(registryKey, buffer.readResourceLocation());
 			T value = buffer.readWithCodec(codec);
+			if (value instanceof DynamicRegistryListener drl)
+				drl.whenNamed(key.location());
 			registry.registerMapping(index, key, value, Lifecycle.experimental());
 		}
 		return decoder.apply(registryKey, registry, codec, start, count);
