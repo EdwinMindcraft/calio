@@ -1,5 +1,6 @@
 package io.github.edwinmindcraft.calio.common.network;
 
+import io.github.apace100.calio.ClassUtil;
 import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.common.network.packet.*;
 import net.minecraftforge.network.HandshakeHandler;
@@ -41,22 +42,24 @@ public class CalioNetwork {
 		//Login
 		CHANNEL.messageBuilder(C2SAcknowledgePacket.class, index++, NetworkDirection.LOGIN_TO_SERVER)
 				.decoder(failsafe(C2SAcknowledgePacket::decode)).encoder(failsafe(C2SAcknowledgePacket::encode))
-				.consumer(failsafe(HandshakeHandler.indexFirst((handler, c2SAcknowledgePacket, context) -> c2SAcknowledgePacket.handle(context))))
+				.consumerNetworkThread(failsafe(HandshakeHandler.indexFirst((handler, c2SAcknowledgePacket, context) -> c2SAcknowledgePacket.handle(context))))
 				.loginIndex(C2SAcknowledgePacket::getLoginIndex, C2SAcknowledgePacket::setLoginIndex)
 				.add();
 
-		CHANNEL.messageBuilder(S2CDynamicRegistryPacket.Login.class, index++, NetworkDirection.LOGIN_TO_CLIENT)
+		Class<S2CDynamicRegistryPacket.Login<?>> loginClass = ClassUtil.get();
+		CHANNEL.messageBuilder(loginClass, index++, NetworkDirection.LOGIN_TO_CLIENT)
 				.decoder(failsafe(S2CDynamicRegistryPacket.Login::decode)).encoder(failsafe(S2CDynamicRegistryPacket::encode))
-				.consumer(failsafe(S2CDynamicRegistryPacket::handle))
+				.consumerNetworkThread(failsafe(S2CDynamicRegistryPacket::handle))
 				.loginIndex(S2CDynamicRegistryPacket.Login::getLoginIndex, S2CDynamicRegistryPacket.Login::setLoginIndex)
 				.buildLoginPacketList(S2CDynamicRegistryPacket.Login::create).add();
 		//Play
 		CHANNEL.messageBuilder(S2CDataObjectRegistryPacket.class, index++, NetworkDirection.PLAY_TO_CLIENT)
 				.decoder(failsafe(S2CDataObjectRegistryPacket::decode)).encoder(failsafe(S2CDataObjectRegistryPacket::encode))
-				.consumer(failsafe(S2CDataObjectRegistryPacket::handle)).add();
-		CHANNEL.messageBuilder(S2CDynamicRegistryPacket.Play.class, index++, NetworkDirection.PLAY_TO_CLIENT)
+				.consumerNetworkThread(failsafe(S2CDataObjectRegistryPacket::handle)).add();
+		Class<S2CDynamicRegistryPacket.Play<?>> playClass = ClassUtil.get();
+		CHANNEL.messageBuilder(playClass, index++, NetworkDirection.PLAY_TO_CLIENT)
 				.decoder(failsafe(S2CDynamicRegistryPacket.Play::decode)).encoder(failsafe(S2CDynamicRegistryPacket::encode))
-				.consumer(failsafe(S2CDynamicRegistryPacket::handle))
+				.consumerNetworkThread(failsafe(S2CDynamicRegistryPacket::handle))
 				.add();
 		CalioAPI.LOGGER.debug("Registered {} packets", index);
 	}

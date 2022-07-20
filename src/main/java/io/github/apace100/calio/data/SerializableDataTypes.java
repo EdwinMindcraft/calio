@@ -331,7 +331,7 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<SoundEvent> SOUND_EVENT = SerializableDataType.registry(SoundEvent.class, ForgeRegistries.SOUND_EVENTS);
 
-	public static final SerializableDataType<EntityType<?>> ENTITY_TYPE = SerializableDataType.registry(ClassUtil.castClass(EntityType.class), ForgeRegistries.ENTITIES);
+	public static final SerializableDataType<EntityType<?>> ENTITY_TYPE = SerializableDataType.registry(ClassUtil.castClass(EntityType.class), ForgeRegistries.ENTITY_TYPES);
 
 	public static final SerializableDataType<ParticleType<?>> PARTICLE_TYPE = SerializableDataType.registry(ClassUtil.castClass(ParticleType.class), ForgeRegistries.PARTICLE_TYPES);
 

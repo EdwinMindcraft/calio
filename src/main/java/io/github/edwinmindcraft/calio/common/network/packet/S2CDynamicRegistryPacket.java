@@ -145,9 +145,9 @@ public abstract sealed class S2CDynamicRegistryPacket<T> permits S2CDynamicRegis
 			return S2CDynamicRegistryPacket.splitPackets((ResourceKey<Registry<T>>) (ResourceKey) key, drm, Login<T>::new, size);
 		}
 
-		public static List<Pair<String, S2CDynamicRegistryPacket.Login>> create(boolean isLocal) {
+		public static List<Pair<String, S2CDynamicRegistryPacket.Login<?>>> create(boolean isLocal) {
 			try {
-				ImmutableList.Builder<Pair<String, S2CDynamicRegistryPacket.Login>> builder = ImmutableList.builder();
+				ImmutableList.Builder<Pair<String, S2CDynamicRegistryPacket.Login<?>>> builder = ImmutableList.builder();
 				CalioDynamicRegistryManager drm = (CalioDynamicRegistryManager) CalioAPI.getDynamicRegistries(ServerLifecycleHooks.getCurrentServer());
 				for (ResourceKey<Registry<?>> registryName : drm.getRegistryNames()) {
 					List<Login<Object>> splitPackets = split(registryName, drm, 1048576);

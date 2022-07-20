@@ -2,6 +2,7 @@ package io.github.edwinmindcraft.calio.api.event;
 
 import io.github.edwinmindcraft.calio.api.registry.ICalioDynamicRegistryManager;
 import net.minecraftforge.eventbus.api.Event;
+import net.minecraftforge.fml.event.IModBusEvent;
 
 public class CalioDynamicRegistryEvent extends Event {
 	private final ICalioDynamicRegistryManager registryManager;
@@ -14,7 +15,7 @@ public class CalioDynamicRegistryEvent extends Event {
 		return this.registryManager;
 	}
 
-	public static class Initialize extends CalioDynamicRegistryEvent {
+	public static class Initialize extends CalioDynamicRegistryEvent implements IModBusEvent {
 		public Initialize(ICalioDynamicRegistryManager registryManager) {
 			super(registryManager);
 		}
