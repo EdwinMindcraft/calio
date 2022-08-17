@@ -181,38 +181,7 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<Enchantment> ENCHANTMENT = SerializableDataType.registry(Enchantment.class, ForgeRegistries.ENCHANTMENTS);
 
-	public static final SerializableDataType<DamageSource> DAMAGE_SOURCE = SerializableDataType.compound(DamageSource.class, new SerializableData()
-					.add("name", STRING)
-					.add("bypasses_armor", BOOLEAN, false)
-					.add("fire", BOOLEAN, false)
-					.add("unblockable", BOOLEAN, false)
-					.add("magic", BOOLEAN, false)
-					.add("out_of_world", BOOLEAN, false)
-					.add("projectile", BOOLEAN, false)
-					.add("explosive", BOOLEAN, false),
-			(data) -> {
-				DamageSource damageSource = new DamageSource(data.getString("name"));
-				if (data.getBoolean("bypasses_armor")) damageSource.bypassArmor();
-				if (data.getBoolean("fire")) damageSource.setIsFire();
-				if (data.getBoolean("unblockable")) damageSource.bypassMagic();
-				if (data.getBoolean("magic")) damageSource.setMagic();
-				if (data.getBoolean("out_of_world")) damageSource.bypassInvul();
-				if (data.getBoolean("projectile")) damageSource.setProjectile();
-				if (data.getBoolean("explosive")) damageSource.setExplosion();
-				return damageSource;
-			},
-			(data, ds) -> {
-				SerializableData.Instance inst = data.new Instance();
-				inst.set("name", ds.getMsgId());
-				inst.set("fire", ds.isFire());
-				inst.set("unblockable", ds.isBypassMagic());
-				inst.set("bypasses_armor", ds.isBypassArmor());
-				inst.set("out_of_world", ds.isBypassInvul());
-				inst.set("magic", ds.isMagic());
-				inst.set("projectile", ds.isProjectile());
-				inst.set("explosive", ds.isExplosion());
-				return inst;
-			});
+	public static final SerializableDataType<DamageSource> DAMAGE_SOURCE = new SerializableDataType<>(DamageSource.class, CalioCodecHelper.DAMAGE_SOURCE_CODEC);
 
 	public static final SerializableDataType<Attribute> ATTRIBUTE = SerializableDataType.registry(Attribute.class, ForgeRegistries.ATTRIBUTES);
 

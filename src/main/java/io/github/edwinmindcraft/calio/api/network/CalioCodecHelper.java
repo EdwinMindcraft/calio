@@ -19,6 +19,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.registries.IForgeRegistry;
 import org.apache.commons.lang3.Validate;
@@ -290,6 +291,27 @@ public class CalioCodecHelper {
 	public static boolean isDataContext(DynamicOps<?> ops) {
 		return ops instanceof JsonOps && !ops.compressMaps();
 	}
+
+	public static final Codec<DamageSource> DAMAGE_SOURCE_CODEC = RecordCodecBuilder.create(instance -> instance.group(
+			Codec.STRING.fieldOf("name").forGetter(DamageSource::getMsgId),
+			optionalField(BOOL, "bypasses_armor", false).forGetter(DamageSource::isBypassArmor),
+			optionalField(BOOL, "fire", false).forGetter(DamageSource::isFire),
+			optionalField(BOOL, "unblockable", false).forGetter(DamageSource::isBypassMagic),
+			optionalField(BOOL, "magic", false).forGetter(DamageSource::isMagic),
+			optionalField(BOOL, "out_of_world", false).forGetter(DamageSource::isBypassInvul),
+			optionalField(BOOL, "projectile", false).forGetter(DamageSource::isProjectile),
+			optionalField(BOOL, "explosive", false).forGetter(DamageSource::isExplosion)
+	).apply(instance, (name, bypassArmor, fire, bypassMagic, magic, bypassInvul, projectile, explosion) -> {
+		DamageSource ds = new DamageSource(name);
+		if (bypassArmor) ds.bypassArmor();
+		if (fire) ds.setIsFire();
+		if (bypassMagic) ds.bypassMagic();
+		if (magic) ds.setMagic();
+		if (bypassInvul) ds.bypassInvul();
+		if (projectile) ds.setProjectile();
+		if (explosion) ds.setExplosion();
+		return ds;
+	}));
 
 	public static class CodecJsonAdapter<T> implements JsonSerializer<T>, JsonDeserializer<T> {
 
