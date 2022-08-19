@@ -29,13 +29,9 @@ import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.util.profiling.ProfilerFiller;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.DistExecutor;
-import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.ModLoader;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.network.PacketDistributor;
 import org.apache.commons.lang3.Validate;
 import org.apache.commons.lang3.tuple.Pair;
@@ -59,8 +55,6 @@ import java.util.stream.Collectors;
 public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager {
 	private static final Gson GSON = new GsonBuilder().create();
 	private static final int FILE_SUFFIX_LENGTH = ".json".length();
-
-	private static final Map<RegistryAccess, CalioDynamicRegistryManager> INSTANCES = new ConcurrentHashMap<>();
 	private static CalioDynamicRegistryManager clientInstance = null;
 	private static CalioDynamicRegistryManager serverInstance = null;
 	private boolean lock;
@@ -184,33 +178,27 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	}
 
 	public static CalioDynamicRegistryManager getInstance(RegistryAccess server) {
-		if (isServerContext(server))
-			return addInstance(server);
+		return isServerContext(server) ? getServerInstance() : getClientInstance();
+	}
 
+	public static CalioDynamicRegistryManager getClientInstance() {
 		if (clientInstance == null)
-			initializeClient();
+			clientInstance = new CalioDynamicRegistryManager();
 		return clientInstance;
 	}
 
-	private static CalioDynamicRegistryManager addInstance(RegistryAccess server) {
+	public static CalioDynamicRegistryManager getServerInstance() {
 		if (serverInstance == null)
 			serverInstance = new CalioDynamicRegistryManager();
-		return serverInstance;//INSTANCES.computeIfAbsent(server, s -> new CalioDynamicRegistryManager());
+		return serverInstance;
 	}
 
-	public static void removeInstance(RegistryAccess server) {
-		//INSTANCES.remove(server);
+	public static void removeServerInstance() {
 		serverInstance = null;
 	}
 
-	@OnlyIn(Dist.CLIENT)
-	public static void initializeClient() {
-		clientInstance = new CalioDynamicRegistryManager();
-	}
-
-	@OnlyIn(Dist.CLIENT)
-	public static void setClientInstance(CalioDynamicRegistryManager clientInstance) {
-		CalioDynamicRegistryManager.clientInstance = clientInstance;
+	public static void removeClientInstance() {
+		clientInstance = null;
 	}
 
 	public static CalioDynamicRegistryManager decode(FriendlyByteBuf buffer) {

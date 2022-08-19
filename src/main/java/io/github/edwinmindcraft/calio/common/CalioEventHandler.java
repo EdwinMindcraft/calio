@@ -48,7 +48,7 @@ public class CalioEventHandler {
 	@SubscribeEvent
 	public static void onServerStopped(ServerStoppedEvent event) {
 		CalioAPI.LOGGER.info("Removing Dynamic Registries for: " + event.getServer());
-		CalioDynamicRegistryManager.removeInstance(event.getServer().registryAccess());
+		CalioDynamicRegistryManager.removeServerInstance();
 	}
 
 	@SubscribeEvent
