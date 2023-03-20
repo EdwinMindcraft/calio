@@ -31,6 +31,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
+import net.minecraft.stats.Stat;
+import net.minecraft.stats.StatType;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.world.InteractionHand;
@@ -54,6 +56,7 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
@@ -578,5 +581,28 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<ClipContext.Fluid> RAYCAST_FLUID_HANDLING = SerializableDataType.enumValue(ClipContext.Fluid.class);
 
-    public static final SerializableDataType<Explosion.BlockInteraction> EXPLOSION_DESTRUCTION_TYPE = SerializableDataType.enumValue(Explosion.BlockInteraction.class);
+	public static final SerializableDataType<Stat<?>> STAT = SerializableDataType.compound(ClassUtil.castClass(Stat.class),
+			new SerializableData()
+					.add("type", SerializableDataType.registry(ClassUtil.castClass(StatType.class), ForgeRegistries.STAT_TYPES))
+					.add("id", SerializableDataTypes.IDENTIFIER),
+			data -> {
+				StatType statType = data.get("type");
+				Registry<?> statRegistry = statType.getRegistry();
+				ResourceLocation statId = data.get("id");
+				if(statRegistry.containsKey(statId)) {
+					Object statObject = statRegistry.get(statId);
+					return statType.get(statObject);
+				}
+				throw new IllegalArgumentException("Desired stat \"" + statId + "\" does not exist in stat type ");
+			},
+			(data, stat) -> {
+				SerializableData.Instance inst = data.new Instance();
+				inst.set("type", stat.getType());
+				Registry reg = stat.getType().getRegistry();
+				ResourceLocation statId = reg.getKey(stat.getValue());
+				inst.set("id", statId);
+				return inst;
+			});
+
+	public static final SerializableDataType<TagKey<Biome>> BIOME_TAG = SerializableDataType.tag(Registry.BIOME_REGISTRY);
 }
