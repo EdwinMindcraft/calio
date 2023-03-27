@@ -203,7 +203,7 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 					return this.get(name) != null;
 				}
 			}
-			return true;
+			return data.containsKey(name);
 		}
 
 		public <T> void ifPresent(String name, Consumer<T> consumer) {
