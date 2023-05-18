@@ -65,7 +65,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	private final List<ResourceKey<?>> validatorOrder;
 
 	public CalioDynamicRegistryManager() {
-		this.registries = new HashMap<>();
+		this.registries = new ConcurrentHashMap<>();
 		this.definitions = new HashMap<>();
 		this.factories = new HashMap<>();
 		this.validators = new HashMap<>();
@@ -264,11 +264,9 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	public @NotNull <T> WritableRegistry<T> get(@NotNull ResourceKey<Registry<T>> key) {
-		MappedRegistry<?> registry = this.registries.get(key);
-		if (registry == null)
-			throw new IllegalArgumentException("Registry " + key + " was missing.");
+		MappedRegistry<?> registry = this.registries.computeIfAbsent(key, k -> this.definitions.get(k).newRegistry((ResourceKey)k));
 		return (MappedRegistry<T>) registry;
 	}
 
