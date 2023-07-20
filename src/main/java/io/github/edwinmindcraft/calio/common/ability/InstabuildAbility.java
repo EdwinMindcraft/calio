@@ -5,19 +5,19 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
 import org.jetbrains.annotations.NotNull;
 
-public class FlightAbility extends PlayerAbility {
+public class InstabuildAbility extends PlayerAbility {
 	@Override
 	public void grant(@NotNull Player player, @NotNull GameType gameType) {
-		player.getAbilities().flying = true;
+		player.getAbilities().instabuild = true;
 	}
 
 	@Override
 	public void revoke(@NotNull Player player, @NotNull GameType gameType) {
-		player.getAbilities().flying = gameType == GameType.SPECTATOR;
+		player.getAbilities().instabuild = gameType.isCreative();
 	}
 
 	@Override
 	public boolean has(@NotNull Player player) {
-		return player.getAbilities().flying;
+		return player.getAbilities().instabuild;
 	}
 }
