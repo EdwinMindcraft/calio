@@ -6,13 +6,17 @@ import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.api.ability.IAbilityHolder;
 import io.github.edwinmindcraft.calio.api.ability.PlayerAbility;
 import io.github.edwinmindcraft.calio.api.registry.PlayerAbilities;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.GameType;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ICapabilitySerializable;
 import net.minecraftforge.common.util.LazyOptional;
@@ -64,7 +68,7 @@ public class AbilityHolder implements ICapabilitySerializable<Tag>, IAbilityHold
 		boolean flag = false;
 		for (PlayerAbility ability : this.toTick) {
 			if (!this.has(ability) && ability.has(this.player)) {
-				ability.revoke(this.player);
+				ability.revoke(this.player, getPlayerGameType());
 				flag = true;
 			}
 		}
@@ -77,12 +81,21 @@ public class AbilityHolder implements ICapabilitySerializable<Tag>, IAbilityHold
 		boolean flag = false;
 		for (PlayerAbility ability : this.abilities.keySet()) {
 			if (!ability.has(this.player) && this.has(ability)) {
-				ability.grant(this.player);
+				ability.grant(this.player, getPlayerGameType());
 				flag = true;
 			}
 		}
 		return flag;
 	}
+
+    private GameType getPlayerGameType() {
+        if (this.player.level.isClientSide()) {
+            PlayerInfo playerinfo = Minecraft.getInstance().getConnection().getPlayerInfo(player.getGameProfile().getId());
+            return playerinfo == null ? GameType.SURVIVAL : playerinfo.getGameMode();
+        } else {
+            return ((ServerPlayer)this.player).gameMode.getGameModeForPlayer();
+        }
+    }
 
 	private final LazyOptional<IAbilityHolder> thisOptional = LazyOptional.of(() -> this);
 
