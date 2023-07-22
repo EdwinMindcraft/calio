@@ -21,6 +21,7 @@ import io.github.edwinmindcraft.calio.client.util.ClientHelper;
 import io.github.edwinmindcraft.calio.common.CalioConfig;
 import io.github.edwinmindcraft.calio.common.network.CalioNetwork;
 import io.github.edwinmindcraft.calio.common.network.packet.S2CDynamicRegistryPacket;
+import io.github.edwinmindcraft.calio.common.util.ComparableResourceKey;
 import net.minecraft.core.*;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
@@ -58,14 +59,14 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	private static CalioDynamicRegistryManager clientInstance = null;
 	private static CalioDynamicRegistryManager serverInstance = null;
 	private boolean lock;
-	private final Map<ResourceKey<?>, MappedRegistry<?>> registries;
-	private final Map<ResourceKey<?>, RegistryDefinition<?>> definitions;
+	private final Map<ComparableResourceKey<?>, MappedRegistry<?>> registries;
+	private final Map<ComparableResourceKey<?>, RegistryDefinition<?>> definitions;
 	private final Map<ResourceKey<?>, ReloadFactory<?>> factories;
 	private final Map<ResourceKey<?>, Validator<?>> validators;
 	private final List<ResourceKey<?>> validatorOrder;
 
 	public CalioDynamicRegistryManager() {
-		this.registries = new ConcurrentHashMap<>();
+		this.registries = new HashMap<>();
 		this.definitions = new HashMap<>();
 		this.factories = new HashMap<>();
 		this.validators = new HashMap<>();
@@ -140,7 +141,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 
 	@SuppressWarnings("unchecked")
 	public <T> Codec<T> getCodec(ResourceKey<Registry<T>> key) {
-		return ((Codec<T>) this.definitions.get(key).codec());
+		return ((Codec<T>) this.definitions.get(new ComparableResourceKey<>(key)).codec());
 	}
 
 	public void dump() {
@@ -215,7 +216,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		ResourceKey<Registry<T>> key = ResourceKey.createRegistryKey(buffer.readResourceLocation());
 		int count = buffer.readVarInt();
 		WritableRegistry<T> registry = manager.get(key);
-		Codec<T> codec = (Codec<T>) manager.definitions.get(key).codec();
+		Codec<T> codec = (Codec<T>) manager.definitions.get(new ComparableResourceKey<>(key)).codec();
 		for (int i = 0; i < count; i++) {
 			ResourceKey<T> objectKey = ResourceKey.create(key, buffer.readResourceLocation());
 			T decode = buffer.readWithCodec(codec);
@@ -226,12 +227,13 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	@Override
 	public <T> void add(@NotNull ResourceKey<Registry<T>> key, @Nullable Consumer<BiConsumer<ResourceKey<T>, T>> builtin, Codec<T> codec, @Nullable Supplier<ResourceLocation> defaultValue) {
 		Validate.isTrue(!this.lock, "Cannot add registries after the dynamic registry manager has initialized");
-		if (this.definitions.containsKey(key))
+        ComparableResourceKey<Registry<T>> comparable = new ComparableResourceKey<>(key);
+        if (this.definitions.containsKey(comparable))
 			throw new IllegalArgumentException("Registry for key " + key + " is already added.");
 		RegistryDefinition<T> value = new RegistryDefinition<>(builtin, codec, defaultValue);
-		this.definitions.put(key, value);
+		this.definitions.put(comparable, value);
 		this.reset(key);
-		this.registries.computeIfAbsent(key, k -> value.newRegistry(key));
+		this.registries.computeIfAbsent(comparable, k -> value.newRegistry(key));
 	}
 
 	@Override
@@ -251,29 +253,33 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	}
 
 	public Set<ResourceKey<Registry<?>>> getRegistryNames() {
-		return (Set<ResourceKey<Registry<?>>>) (Set) this.definitions.keySet();
+		return (Set<ResourceKey<Registry<?>>>) (Set) this.definitions.keySet().stream().map(ComparableResourceKey::resourceKey).collect(Collectors.toSet());
 	}
 
 	@Override
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public <T> WritableRegistry<T> reset(ResourceKey<Registry<T>> key) {
-		this.registries.remove(key);
-		MappedRegistry mappedRegistry = this.definitions.get(key).newRegistry((ResourceKey) key);
-		this.registries.put(key, mappedRegistry);
+        ComparableResourceKey<Registry<T>> comparable = new ComparableResourceKey<>(key);
+		this.registries.remove(comparable);
+		MappedRegistry mappedRegistry = this.definitions.get(comparable).newRegistry((ResourceKey) key);
+		this.registries.put(comparable, mappedRegistry);
 		return mappedRegistry;
 	}
 
 	@Override
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	public @NotNull <T> WritableRegistry<T> get(@NotNull ResourceKey<Registry<T>> key) {
-		MappedRegistry<?> registry = this.registries.computeIfAbsent(key, k -> this.definitions.get(k).newRegistry((ResourceKey)k));
-		return (MappedRegistry<T>) registry;
-	}
+	@SuppressWarnings({"unchecked"})
+    public @NotNull <T> WritableRegistry<T> get(@NotNull ResourceKey<Registry<T>> key) {
+        ComparableResourceKey<Registry<T>> comparable = new ComparableResourceKey<>(key);
+        MappedRegistry<?> registry = this.registries.get(comparable);
+        if (registry == null)
+            throw new IllegalArgumentException("Registry " + key + " was missing.");
+        return (MappedRegistry<T>) registry;
+    }
 
 	@Override
 	@SuppressWarnings("unchecked")
 	public <T> Optional<WritableRegistry<T>> getOrEmpty(ResourceKey<Registry<T>> key) {
-		return Optional.ofNullable((WritableRegistry<T>) this.registries.get(key));
+		return Optional.ofNullable((WritableRegistry<T>) this.registries.get(new ComparableResourceKey<>(key)));
 	}
 
 	@Override
@@ -286,12 +292,12 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	public void encode(FriendlyByteBuf buffer) {
 		//Size, <Names>
 		buffer.writeVarInt(this.registries.size());
-		this.registries.forEach((registryKey, objects) -> this.writeRegistry(registryKey, objects, buffer));
+		this.registries.forEach((registryKey, objects) -> this.writeRegistry(registryKey.resourceKey(), objects, buffer));
 	}
 
 	@SuppressWarnings("unchecked")
 	public <T> void writeRegistry(ResourceKey<?> key, Registry<T> registry, FriendlyByteBuf buffer) {
-		Codec<T> codec = (Codec<T>) this.definitions.get(key).codec();
+		Codec<T> codec = (Codec<T>) this.definitions.get(new ComparableResourceKey<>(key)).codec();
 		buffer.writeResourceLocation(key.location());
 		List<Pair<ResourceLocation, T>> entries = new ArrayList<>(registry.size());
 		for (ResourceLocation entry : registry.keySet()) { //If holders are missing, using entry would prevent login if a power was missing.
