@@ -12,6 +12,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.MappedRegistry;
 import net.minecraft.core.Registry;
 import net.minecraft.core.WritableRegistry;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
 import net.minecraftforge.network.NetworkEvent;
@@ -49,7 +50,7 @@ public abstract sealed class S2CDynamicRegistryPacket<T> permits S2CDynamicRegis
 			Holder.Reference<T> entry = references.get(i);
 			buffer.writeInt(this.registry.getId(entry.value()));
 			buffer.writeResourceLocation(entry.key().location());
-			buffer.writeWithCodec(this.codec, entry.value());
+			buffer.writeWithCodec(NbtOps.INSTANCE, this.codec, entry.value());
 		}
 	}
 
@@ -69,7 +70,7 @@ public abstract sealed class S2CDynamicRegistryPacket<T> permits S2CDynamicRegis
 			Holder.Reference<T> entry = references.get(i);
 			buffer.writeInt(registry.getId(entry.value()));
 			buffer.writeResourceLocation(entry.key().location());
-			buffer.writeWithCodec(codec, entry.value());
+			buffer.writeWithCodec(NbtOps.INSTANCE, codec, entry.value());
 			if (buffer.writerIndex() >= size) {
 				packets.add(builder.apply(key, registry, codec, start, i - start));
 				start = i;
@@ -84,14 +85,14 @@ public abstract sealed class S2CDynamicRegistryPacket<T> permits S2CDynamicRegis
 	private static <T, V extends S2CDynamicRegistryPacket<T>> V decodeWithBuilder(FriendlyByteBuf buffer, Builder<T, V> decoder) {
 		CalioDynamicRegistryManager cdrm = CalioDynamicRegistryManager.getInstance(null);
 		ResourceKey<Registry<T>> registryKey = ResourceKey.createRegistryKey(buffer.readResourceLocation());
-		MappedRegistry<T> registry = new MappedRegistry<>(registryKey, Lifecycle.experimental(), null);
+		MappedRegistry<T> registry = new MappedRegistry<>(registryKey, Lifecycle.experimental(), false);
 		Codec<T> codec = cdrm.getCodec(registryKey);
 		int start = buffer.readVarInt();
 		int count = buffer.readVarInt();
 		for (int i = 0; i < count; i++) {
 			int index = buffer.readInt();
 			ResourceKey<T> key = ResourceKey.create(registryKey, buffer.readResourceLocation());
-			T value = buffer.readWithCodec(codec);
+			T value = buffer.readWithCodec(NbtOps.INSTANCE, codec);
 			if (value instanceof DynamicRegistryListener drl)
 				drl.whenNamed(key.location());
 			registry.registerMapping(index, key, value, Lifecycle.experimental());
@@ -104,7 +105,7 @@ public abstract sealed class S2CDynamicRegistryPacket<T> permits S2CDynamicRegis
 			CalioDynamicRegistryManager instance = CalioDynamicRegistryManager.getInstance(null);
 			WritableRegistry<T> target = this.start == 0 ? instance.reset(this.key) : instance.get(this.key);
 			for (Map.Entry<ResourceKey<T>, T> entry : this.registry.entrySet())
-				target.registerOrOverride(OptionalInt.of(this.registry.getId(entry.getValue())), entry.getKey(), entry.getValue(), Lifecycle.experimental());
+				target.registerMapping(this.registry.getId(entry.getValue()), entry.getKey(), entry.getValue(), Lifecycle.experimental());
 			instance.dump();
 		});
 		if (this instanceof S2CDynamicRegistryPacket.Login<T>)

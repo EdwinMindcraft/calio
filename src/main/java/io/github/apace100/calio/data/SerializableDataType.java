@@ -1,9 +1,7 @@
 package io.github.apace100.calio.data;
 
 import com.google.common.collect.BiMap;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonNull;
-import com.google.gson.JsonParseException;
+import com.google.gson.*;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -16,6 +14,7 @@ import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.FilterableWeightedList;
 import io.github.apace100.calio.SerializationHelper;
 import io.github.apace100.calio.util.ArgumentWrapper;
+import io.github.apace100.calio.util.TagLike;
 import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.api.network.CalioCodecHelper;
 import io.github.edwinmindcraft.calio.api.network.EnumValueCodec;
@@ -31,6 +30,7 @@ import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraftforge.registries.IForgeRegistry;
 import org.jetbrains.annotations.NotNull;
@@ -194,7 +194,7 @@ public class SerializableDataType<T> implements Codec<T> {
 			try {
 				return DataResult.success(Pair.of(this.read.apply(jsonElement), ops.empty()));
 			} catch (Exception e) {
-				return DataResult.error("At " + this.dataClass.getSimpleName() + ": " + e.getMessage());
+				return DataResult.error(() -> "At " + this.dataClass.getSimpleName() + ": " + e.getMessage());
 			}
 		}
 
@@ -204,7 +204,7 @@ public class SerializableDataType<T> implements Codec<T> {
 				Pair<T, T1> pair = Pair.of(this.receive.apply(buffer), ops.empty());
 				return DataResult.success(pair);
 			} catch (Exception e) {
-				return DataResult.error("At " + this.dataClass.getSimpleName() + ": " + e.getMessage());
+				return DataResult.error(() -> "At " + this.dataClass.getSimpleName() + ": " + e.getMessage());
 			} finally {
 				buffer.release();
 			}
@@ -218,16 +218,16 @@ public class SerializableDataType<T> implements Codec<T> {
 				return this.codec.encode(input, ops, prefix);
 			} catch (Throwable t) {
 				CalioAPI.LOGGER.error("Error", t);
-				return DataResult.error("Error caught while encoding " + this.dataClass.getSimpleName() + ": " + input + ":" + t.getMessage());
+				return DataResult.error(() -> "Error caught while encoding " + this.dataClass.getSimpleName() + ": " + input + ":" + t.getMessage());
 			}
 		}
 		if (isDataContext(ops)) {
 			if (this.write == null)
-				return DataResult.error("Writing is unsupported for type: " + this.dataClass.getSimpleName());
+				return DataResult.error(() -> "Writing is unsupported for type: " + this.dataClass.getSimpleName());
 			try {
 				return DataResult.success(JsonOps.INSTANCE.convertTo(ops, this.write.apply(input)));
 			} catch (Exception e) {
-				return DataResult.error("At " + this.dataClass.getSimpleName() + ": " + e.getMessage());
+				return DataResult.error(() -> "At " + this.dataClass.getSimpleName() + ": " + e.getMessage());
 			}
 		}
 
@@ -236,7 +236,7 @@ public class SerializableDataType<T> implements Codec<T> {
 			this.send.accept(buffer, input);
 			return DataResult.success(ops.createByteList(buffer.nioBuffer()));
 		} catch (Exception e) {
-			return DataResult.error("At " + this.dataClass.getSimpleName() + ": " + e.getMessage());
+			return DataResult.error(() -> "At " + this.dataClass.getSimpleName() + ": " + e.getMessage());
 		} finally {
 			buffer.release();
 		}
@@ -254,6 +254,46 @@ public class SerializableDataType<T> implements Codec<T> {
 					}
 				});
 	}
+
+    public static <T> SerializableDataType<TagLike<T>> tagLike(Registry<T> registry) {
+        return new SerializableDataType<>(ClassUtil.castClass(TagLike.class),
+                (packetByteBuf, tagLike) -> tagLike.write(packetByteBuf),
+                packetByteBuf -> {
+                    TagLike<T> tagLike = new TagLike<>(registry);
+                    tagLike.read(packetByteBuf);
+                    return tagLike;
+                },
+                jsonElement -> {
+                    TagLike<T> tagLike = new TagLike<>(registry);
+                    if (!jsonElement.isJsonArray()) {
+                        throw new JsonSyntaxException("Expected a JSON array,");
+                    }
+                    JsonArray jsonArray = jsonElement.getAsJsonArray();
+                    jsonArray.forEach(je -> {
+                        String s = je.getAsString();
+                        if (s.startsWith("#")) {
+                            ResourceLocation id = new ResourceLocation(s.substring(1));
+                            tagLike.addTag(id);
+                        } else {
+                            tagLike.add(new ResourceLocation(s));
+                        }
+                    });
+                    return tagLike;
+                },
+                tagLike -> {
+                    JsonArray array = new JsonArray();
+                    tagLike.forEach(either -> {
+                        either.ifLeft(tagKey -> {
+                            String s = "#" + tagKey.location();
+                            array.add(s);
+                        }).ifRight(t -> {
+                            String s = registry.getKey(t).toString();
+                            array.add(s);
+                        });
+                    });
+                    return array;
+                });
+    }
 
     private void writeWithCodec(FriendlyByteBuf buf, Codec<T> codec, T data) {
         DataResult<Tag> dataResult = codec.encodeStart(NbtOps.INSTANCE, data);

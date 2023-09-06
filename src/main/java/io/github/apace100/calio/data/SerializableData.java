@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.*;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
@@ -45,11 +46,11 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 	}
 
 	public void write(FriendlyByteBuf buffer, Instance instance) {
-		buffer.writeWithCodec(this.codec(), instance);
+		buffer.writeWithCodec(NbtOps.INSTANCE, this.codec(), instance);
 	}
 
 	public Instance read(FriendlyByteBuf buffer) {
-		return buffer.readWithCodec(this.codec());
+		return buffer.readWithCodec(NbtOps.INSTANCE, this.codec());
 	}
 
 	public Instance read(JsonObject jsonObject) {
@@ -108,7 +109,7 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 					T t = fields.get(entry.getKey());
 					if (t == null) {
 						if (!entry.getValue().hasDefault())
-							return DataResult.error("Missing required field: " + entry.getKey());
+							return DataResult.error(() -> "Missing required field: " + entry.getKey());
 						x.set(entry.getKey(), entry.getValue().getDefault(x));
 						return DataResult.success(x);
 					} else {
@@ -133,7 +134,7 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 			if (value != null)
 				prefix.add(key, field.dataType.encodeStart(ops, value));
 			else if (!field.hasDefault())
-				prefix.add(key, DataResult.error("Missing required field: " + key));
+				prefix.add(key, DataResult.error(() -> "Missing required field: " + key));
 		}
 		return prefix;
 	}

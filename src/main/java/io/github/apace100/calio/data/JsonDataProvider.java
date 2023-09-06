@@ -1,8 +1,10 @@
 package io.github.apace100.calio.data;
 
+import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
+import net.minecraft.Util;
 import net.minecraft.data.CachedOutput;
 import net.minecraft.data.DataGenerator;
 import net.minecraft.data.DataProvider;
@@ -15,7 +17,9 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 public abstract class JsonDataProvider<T> implements DataProvider {
 
@@ -51,15 +55,20 @@ public abstract class JsonDataProvider<T> implements DataProvider {
 	}
 
 	@Override
-	public void run(@NotNull CachedOutput cache) throws IOException {
+	public CompletableFuture<?> run(@NotNull CachedOutput cache) {
 		this.populate();
 		this.validate();
+        List<CompletableFuture<?>> list = Lists.newArrayList();
+
 		for (Map.Entry<ResourceLocation, T> entry : this.objects.entrySet()) {
-			DataProvider.saveStable(cache, this.asJson(entry.getValue()), this.getPath(entry.getKey()));
+			list.add(CompletableFuture.supplyAsync(() ->
+                            DataProvider.saveStable(cache, this.asJson(entry.getValue()), this.getPath(entry.getKey())),
+                    Util.backgroundExecutor()).thenCompose((p_253441_) -> p_253441_));
 		}
-	}
+        return Util.sequenceFailFast(list);
+    }
 
 	protected Path getPath(ResourceLocation entry) {
-		return this.generator.getOutputFolder().resolve(Paths.get(this.resourceType.getDirectory(), entry.getNamespace(), this.folder, entry.getPath() + ".json"));
+		return this.generator.getPackOutput().getOutputFolder().resolve(Paths.get(this.resourceType.getDirectory(), entry.getNamespace(), this.folder, entry.getPath() + ".json"));
 	}
 }

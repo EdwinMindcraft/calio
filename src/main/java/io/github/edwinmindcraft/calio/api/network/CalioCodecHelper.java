@@ -3,7 +3,6 @@ package io.github.edwinmindcraft.calio.api.network;
 import com.google.common.collect.ImmutableList;
 import com.google.gson.*;
 import com.mojang.datafixers.util.Pair;
-import com.mojang.math.Vector3f;
 import com.mojang.serialization.*;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.apace100.calio.FilterableWeightedList;
@@ -19,11 +18,11 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.registries.IForgeRegistry;
 import org.apache.commons.lang3.Validate;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Vector3f;
 
 import java.lang.reflect.Type;
 import java.util.*;
@@ -162,13 +161,18 @@ public class CalioCodecHelper {
 	}
 
 	public static <T> Codec<Holder<T>> holderRef(Supplier<Registry<T>> access, ResourceKey<Registry<T>> key, Codec<ResourceLocation> reference) {
-		return reference.flatXmap(id -> access.get().getOrCreateHolder(ResourceKey.create(key, id)), h -> {
-			try {
-				return h.unwrap().map(x -> DataResult.success(x.location()), t -> access.get().getResourceKey(t).map(ResourceKey::location).map(DataResult::success).orElseGet(() -> DataResult.error("Key not in registry.")));
-			} catch (IllegalStateException e) {
-				return DataResult.error("Completely unbound input.");
-			}
-		});
+        return reference.flatXmap(id -> {
+            if (access.get() instanceof MappedRegistry<T> mapped) {
+                return DataResult.success(mapped.createRegistrationLookup().getOrThrow(ResourceKey.create(key, id)));
+            }
+            return DataResult.error(() -> "Failed to get holder from non MappedRegistry '" + key.location() + "'.", Holder.direct(null));
+        }, h -> {
+            try {
+                return h.unwrap().map(x -> DataResult.success(x.location()), t -> access.get().getResourceKey(t).map(ResourceKey::location).map(DataResult::success).orElseGet(() -> DataResult.error(() -> "Key not in registry.")));
+            } catch (IllegalStateException e) {
+                return DataResult.error(() -> "Completely unbound input.");
+            }
+        });
 	}
 
 	public static <T> Codec<Holder<T>> holderRef(ResourceKey<Registry<T>> key, Codec<ResourceLocation> reference) {
@@ -183,7 +187,7 @@ public class CalioCodecHelper {
 		//FIXME Add support for * operator.
 		Codec<TagKey<T>> hashedTag = Codec.STRING.comapFlatMap(string -> string.startsWith("#") ?
 				ResourceLocation.read(string.substring(1)).map(loc -> TagKey.create(key, loc)) :
-				DataResult.error("Not a tag id"), tag -> "#" + tag.location());
+				DataResult.error(() -> "Not a tag id"), tag -> "#" + tag.location());
 		Codec<HolderSet<T>> directSet = holderSet(access, directTag, holder);
 		Codec<HolderSet<T>> hashedSet = holderSet(access, hashedTag, holder);
 		Codec<List<HolderSet<T>>> set = listOf(hashedSet);
@@ -216,12 +220,12 @@ public class CalioCodecHelper {
 	}
 
 	public static <A> PropagatingDefaultedOptionalFieldCodec<Holder<A>> registryDefaultedField(Codec<Holder<A>> codec, String name, ResourceKey<Registry<A>> registry, Supplier<IForgeRegistry<A>> builtin) {
-		Supplier<Holder<A>> supplier = () -> CalioAPI.getDynamicRegistries().get(registry) instanceof DefaultedRegistry<A> def ? def.getHolderOrThrow(ResourceKey.create(registry, def.getDefaultKey())) : builtin.get().getHolder(builtin.get().getDefaultKey()).orElseThrow();
+		Supplier<Holder<A>> supplier = () -> CalioAPI.getDynamicRegistries().get(registry) instanceof DefaultedMappedRegistry<A> def ? def.getHolderOrThrow(ResourceKey.create(registry, def.getDefaultKey())) : builtin.get().getHolder(builtin.get().getDefaultKey()).orElseThrow();
 		return optionalField(codec, name, supplier);
 	}
 
 	public static <A> PropagatingDefaultedOptionalFieldCodec<Holder<A>> registryField(Codec<Holder<A>> codec, String name, ResourceKey<A> value, ResourceKey<Registry<A>> registry, Supplier<IForgeRegistry<A>> builtin) {
-		Supplier<Holder<A>> supplier = () -> CalioAPI.getDynamicRegistries().get(registry) instanceof DefaultedRegistry<A> def ? def.getHolderOrThrow(value) : builtin.get().getHolder(value).orElseThrow();
+		Supplier<Holder<A>> supplier = () -> CalioAPI.getDynamicRegistries().get(registry) instanceof DefaultedMappedRegistry<A> def ? def.getHolderOrThrow(value) : builtin.get().getHolder(value).orElseThrow();
 		return optionalField(codec, name, supplier);
 	}
 
@@ -291,27 +295,6 @@ public class CalioCodecHelper {
 	public static boolean isDataContext(DynamicOps<?> ops) {
 		return ops instanceof JsonOps && !ops.compressMaps();
 	}
-
-	public static final Codec<DamageSource> DAMAGE_SOURCE_CODEC = RecordCodecBuilder.create(instance -> instance.group(
-			Codec.STRING.fieldOf("name").forGetter(DamageSource::getMsgId),
-			optionalField(BOOL, "bypasses_armor", false).forGetter(DamageSource::isBypassArmor),
-			optionalField(BOOL, "fire", false).forGetter(DamageSource::isFire),
-			optionalField(BOOL, "unblockable", false).forGetter(DamageSource::isBypassMagic),
-			optionalField(BOOL, "magic", false).forGetter(DamageSource::isMagic),
-			optionalField(BOOL, "out_of_world", false).forGetter(DamageSource::isBypassInvul),
-			optionalField(BOOL, "projectile", false).forGetter(DamageSource::isProjectile),
-			optionalField(BOOL, "explosive", false).forGetter(DamageSource::isExplosion)
-	).apply(instance, (name, bypassArmor, fire, bypassMagic, magic, bypassInvul, projectile, explosion) -> {
-		DamageSource ds = new DamageSource(name);
-		if (bypassArmor) ds.bypassArmor();
-		if (fire) ds.setIsFire();
-		if (bypassMagic) ds.bypassMagic();
-		if (magic) ds.setMagic();
-		if (bypassInvul) ds.bypassInvul();
-		if (projectile) ds.setProjectile();
-		if (explosion) ds.setExplosion();
-		return ds;
-	}));
 
 	public static class CodecJsonAdapter<T> implements JsonSerializer<T>, JsonDeserializer<T> {
 

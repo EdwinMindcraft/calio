@@ -30,10 +30,10 @@ public interface IContextAwareCodec<A> extends Codec<A> {
 			try {
 				A a = this.fromJson(json);
 				if (a == null)
-					return DataResult.error("Json deserialization was null");
+					return DataResult.error(() -> "Json deserialization was null");
 				return DataResult.success(Pair.of(a, ops.empty()));
 			} catch (Exception e) {
-				return DataResult.error(e.getMessage());
+				return DataResult.error(e::getMessage);
 			}
 		}
 		return ops.getByteBuffer(input).flatMap(x -> {
@@ -42,7 +42,7 @@ public interface IContextAwareCodec<A> extends Codec<A> {
 				A decode = this.decode(buffer);
 				return DataResult.success(Pair.of(decode, ops.empty()));
 			} catch (Exception e) {
-				return DataResult.error(e.getMessage());
+				return DataResult.error(e::getMessage);
 			} finally {
 				buffer.release();
 			}
@@ -56,7 +56,7 @@ public interface IContextAwareCodec<A> extends Codec<A> {
 				JsonElement json = this.asJson(input);
 				return DataResult.success(JsonOps.INSTANCE.convertTo(ops, json));
 			} catch (Exception e) {
-				return DataResult.error(e.getMessage());
+				return DataResult.error(e::getMessage);
 			}
 		}
 
@@ -66,7 +66,7 @@ public interface IContextAwareCodec<A> extends Codec<A> {
 			ByteBuffer byteBuffer = buffer.nioBuffer();
 			return DataResult.success(ops.createByteList(byteBuffer));
 		} catch (Exception e) {
-			return DataResult.error(e.getMessage());
+			return DataResult.error(e::getMessage);
 		} finally {
 			buffer.release();
 		}

@@ -49,16 +49,16 @@ public class EnumValueCodec<A extends Enum<A>> implements Codec<A> {
 		if (intValue.error().isPresent()) {
 			DataResult<String> stringValue = ops.getStringValue(input);
 			if (stringValue.error().isPresent())
-				return DataResult.error("Errors reading " + this.values.getClass().getComponentType().getSimpleName() + ": I:" + intValue.error().get() + " S:" + stringValue.error().get());
+				return DataResult.error(() -> "Errors reading " + this.values.getClass().getComponentType().getSimpleName() + ": I:" + intValue.error().get() + " S:" + stringValue.error().get());
 			String key = stringValue.result().get().toLowerCase(Locale.ROOT); //If this crashes, something is very wrong.
 			A value = this.fields.get(key);
 			if (value == null)
-				return DataResult.error("Error reading " + this.values.getClass().getComponentType().getSimpleName() + ": No value was found for name: \"" + key + "\"");
+				return DataResult.error(() -> "Error reading " + this.values.getClass().getComponentType().getSimpleName() + ": No value was found for name: \"" + key + "\"");
 			return DataResult.success(Pair.of(value, ops.empty()));
 		}
 		int integer = intValue.result().get();
 		if (integer < 0 || integer >= this.values.length)
-			return DataResult.error("Error reading " + this.values.getClass().getComponentType().getSimpleName() + ": Value " + integer + " was out of range: [0," + (this.values.length - 1) + "]");
+			return DataResult.error(() -> "Error reading " + this.values.getClass().getComponentType().getSimpleName() + ": Value " + integer + " was out of range: [0," + (this.values.length - 1) + "]");
 		return DataResult.success(Pair.of(this.values[integer], ops.empty()));
 	}
 

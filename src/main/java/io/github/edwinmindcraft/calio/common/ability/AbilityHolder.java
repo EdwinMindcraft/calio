@@ -89,7 +89,7 @@ public class AbilityHolder implements ICapabilitySerializable<Tag>, IAbilityHold
 	}
 
     private GameType getPlayerGameType() {
-        if (this.player.level.isClientSide()) {
+        if (this.player.level().isClientSide()) {
             PlayerInfo playerinfo = Minecraft.getInstance().getConnection().getPlayerInfo(player.getGameProfile().getId());
             return playerinfo == null ? GameType.SURVIVAL : playerinfo.getGameMode();
         } else {

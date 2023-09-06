@@ -45,7 +45,7 @@ public class CalioAPI {
 			return null;
 		if (ServerLifecycleHooks.getCurrentServer() != null)
 			return ServerLifecycleHooks.getCurrentServer().registryAccess();
-		return RegistryAccess.BUILTIN.get();
+		return RegistryAccess.EMPTY;
 	}
 
 	@Contract(pure = true)

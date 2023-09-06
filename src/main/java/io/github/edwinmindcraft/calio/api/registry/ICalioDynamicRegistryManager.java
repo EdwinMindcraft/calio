@@ -4,8 +4,8 @@ import com.mojang.serialization.Codec;
 import io.github.apace100.calio.data.MultiJsonDataLoader;
 import io.github.edwinmindcraft.calio.api.event.DynamicRegistrationEvent;
 import net.minecraft.core.DefaultedRegistry;
+import net.minecraft.core.MappedRegistry;
 import net.minecraft.core.Registry;
-import net.minecraft.core.WritableRegistry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.PreparableReloadListener;
@@ -121,7 +121,7 @@ public interface ICalioDynamicRegistryManager extends PreparableReloadListener {
 	 *
 	 * @return The new registry.
 	 */
-	<T> WritableRegistry<T> reset(ResourceKey<Registry<T>> key);
+	<T> MappedRegistry<T> reset(ResourceKey<Registry<T>> key);
 
 	/**
 	 * Returns the mutable registry corresponding to the given key.
@@ -134,7 +134,7 @@ public interface ICalioDynamicRegistryManager extends PreparableReloadListener {
 	 * @see #getOrEmpty(ResourceKey) for the null-safe version.
 	 */
 	@Contract(pure = true)
-	@NotNull <T> WritableRegistry<T> get(@NotNull ResourceKey<Registry<T>> key);
+	@NotNull <T> MappedRegistry<T> get(@NotNull ResourceKey<Registry<T>> key);
 
 	/**
 	 * Returns an optional containing the mutable registry corresponding to the
@@ -144,7 +144,7 @@ public interface ICalioDynamicRegistryManager extends PreparableReloadListener {
 	 *
 	 * @return The registry associated with the given key.
 	 */
-	<T> Optional<WritableRegistry<T>> getOrEmpty(ResourceKey<Registry<T>> key);
+	<T> Optional<MappedRegistry<T>> getOrEmpty(ResourceKey<Registry<T>> key);
 
 	/**
 	 * Registers the given item in the given registry.

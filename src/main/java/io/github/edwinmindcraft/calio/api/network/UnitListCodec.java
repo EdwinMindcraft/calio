@@ -26,7 +26,7 @@ public class UnitListCodec<A> implements Codec<List<A>> {
 		//Which means larger packets.
 		if (input.size() == 1 && !(ops instanceof NbtOps))
 			return this.elementCodec.encode(input.get(0), ops, prefix);
-		DataResult<T> result = DataResult.error("Failed to serialize list.");
+		DataResult<T> result = DataResult.error(() -> "Failed to serialize list.");
 		try {
 			final ListBuilder<T> builder = ops.listBuilder();
 			for (final A a : input) {
@@ -57,11 +57,11 @@ public class UnitListCodec<A> implements Codec<List<A>> {
 						try {
 							return DataResult.success(Integer.valueOf(x));
 						} catch (NumberFormatException e) {
-							return DataResult.error("At element: " + x + ": " + e.getMessage());
+							return DataResult.error(() -> "At element: " + x + ": " + e.getMessage());
 						}
 					}), value.getSecond())).toList();
 					Optional<Pair<DataResult<Integer>, T>> first = pairs.stream().filter(pair -> pair.getFirst().error().isPresent()).findFirst();
-					return first.<DataResult<Consumer<Consumer<T>>>>map(dataResultTPair -> DataResult.error(dataResultTPair.getFirst().error().get().message()))
+					return first.<DataResult<Consumer<Consumer<T>>>>map(dataResultTPair -> DataResult.error(() -> dataResultTPair.getFirst().error().get().message()))
 							.orElseGet(() -> DataResult.success(consumer -> pairs.stream().sorted(Comparator.comparingInt(value -> value.getFirst().result().get())).map(Pair::getSecond).forEach(consumer)));
 				});
 			}

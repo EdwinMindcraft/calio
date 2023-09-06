@@ -24,6 +24,8 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.Registry;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleType;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.network.FriendlyByteBuf;
@@ -37,7 +39,7 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EntityType;
@@ -62,7 +64,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FogType;
-import net.minecraft.world.level.material.Material;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.apache.commons.lang3.Validate;
@@ -184,8 +185,6 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<Enchantment> ENCHANTMENT = SerializableDataType.registry(Enchantment.class, ForgeRegistries.ENCHANTMENTS);
 
-	public static final SerializableDataType<DamageSource> DAMAGE_SOURCE = new SerializableDataType<>(DamageSource.class, CalioCodecHelper.DAMAGE_SOURCE_CODEC);
-
 	public static final SerializableDataType<Attribute> ATTRIBUTE = SerializableDataType.registry(Attribute.class, ForgeRegistries.ATTRIBUTES);
 
 	public static final SerializableDataType<AttributeModifier.Operation> MODIFIER_OPERATION = SerializableDataType.enumValue(AttributeModifier.Operation.class);
@@ -227,13 +226,13 @@ public final class SerializableDataTypes {
 	public static final SerializableDataType<List<MobEffectInstance>> STATUS_EFFECT_INSTANCES =
 			SerializableDataType.list(STATUS_EFFECT_INSTANCE);
 
-	public static final SerializableDataType<TagKey<Item>> ITEM_TAG = SerializableDataType.tag(Registry.ITEM_REGISTRY);
+	public static final SerializableDataType<TagKey<Item>> ITEM_TAG = SerializableDataType.tag(Registries.ITEM);
 
-	public static final SerializableDataType<TagKey<Fluid>> FLUID_TAG = SerializableDataType.tag(Registry.FLUID_REGISTRY);
+	public static final SerializableDataType<TagKey<Fluid>> FLUID_TAG = SerializableDataType.tag(Registries.FLUID);
 
-	public static final SerializableDataType<TagKey<Block>> BLOCK_TAG = SerializableDataType.tag(Registry.BLOCK_REGISTRY);
+	public static final SerializableDataType<TagKey<Block>> BLOCK_TAG = SerializableDataType.tag(Registries.BLOCK);
 
-	public static final SerializableDataType<TagKey<EntityType<?>>> ENTITY_TAG = SerializableDataType.tag(Registry.ENTITY_TYPE_REGISTRY);
+	public static final SerializableDataType<TagKey<EntityType<?>>> ENTITY_TAG = SerializableDataType.tag(Registries.ENTITY_TYPE);
 
 	public static final SerializableDataType<Ingredient.Value> INGREDIENT_ENTRY = SerializableDataType.compound(ClassUtil.castClass(Ingredient.Value.class),
 			new SerializableData()
@@ -284,11 +283,14 @@ public final class SerializableDataTypes {
 			BlockStateParser::serialize,
 			string -> {
 				try {
-					return BlockStateParser.parseForBlock(Registry.BLOCK, new StringReader(string), false).blockState();
+					return BlockStateParser.parseForBlock(BuiltInRegistries.BLOCK.asLookup(), new StringReader(string), false).blockState();
 				} catch (CommandSyntaxException e) {
 					throw new JsonParseException(e);
 				}
 			});
+
+
+    public static final SerializableDataType<ResourceKey<DamageType>> DAMAGE_TYPE = SerializableDataType.registryKey(Registries.DAMAGE_TYPE);
 
 	public static final SerializableDataType<MobType> ENTITY_GROUP =
 			SerializableDataType.mapped(MobType.class, HashBiMap.create(ImmutableMap.of(
@@ -373,7 +375,7 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<List<Component>> TEXTS = SerializableDataType.list(TEXT);
 
-	public static SerializableDataType<ResourceKey<Level>> DIMENSION = SerializableDataType.registryKey(Registry.DIMENSION_REGISTRY);
+	public static SerializableDataType<ResourceKey<Level>> DIMENSION = SerializableDataType.registryKey(Registries.DIMENSION);
 
 	// It is theoretically possible to support recipe serialization, but it's a mess.
 	// To do this, we need to keep an additional list functions designed to build RecipeJsonProvider
@@ -408,11 +410,11 @@ public final class SerializableDataTypes {
 				return serializer.fromJson(recipeId, json);
 			});
 
-	public static final SerializableDataType<GameEvent> GAME_EVENT = SerializableDataType.registry(GameEvent.class, Registry.GAME_EVENT);
+	public static final SerializableDataType<GameEvent> GAME_EVENT = SerializableDataType.registry(GameEvent.class, BuiltInRegistries.GAME_EVENT);
 
 	public static final SerializableDataType<List<GameEvent>> GAME_EVENTS = SerializableDataType.list(GAME_EVENT);
 
-	public static final SerializableDataType<TagKey<GameEvent>> GAME_EVENT_TAG = SerializableDataType.tag(Registry.GAME_EVENT_REGISTRY);
+	public static final SerializableDataType<TagKey<GameEvent>> GAME_EVENT_TAG = SerializableDataType.tag(Registries.GAME_EVENT);
 
 	public static final SerializableDataType<Fluid> FLUID = SerializableDataType.registry(Fluid.class, ForgeRegistries.FLUIDS);
 
@@ -517,63 +519,6 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<EnumSet<Direction.Axis>> AXIS_SET = SerializableDataType.enumSet(Direction.Axis.class, AXIS);
 
-	private static final HashMap<String, Material> MATERIAL_MAP;
-
-	static {
-		MATERIAL_MAP = new HashMap<>();
-		MATERIAL_MAP.put("air", Material.AIR);
-		MATERIAL_MAP.put("structure_void", Material.STRUCTURAL_AIR);
-		MATERIAL_MAP.put("portal", Material.PORTAL);
-		MATERIAL_MAP.put("carpet", Material.CLOTH_DECORATION);
-		MATERIAL_MAP.put("plant", Material.PLANT);
-		MATERIAL_MAP.put("underwater_plant", Material.WATER_PLANT);
-		MATERIAL_MAP.put("replaceable_plant", Material.REPLACEABLE_PLANT);
-		MATERIAL_MAP.put("nether_shoots", Material.REPLACEABLE_FIREPROOF_PLANT);
-		MATERIAL_MAP.put("replaceable_underwater_plant", Material.REPLACEABLE_WATER_PLANT);
-		MATERIAL_MAP.put("water", Material.WATER);
-		MATERIAL_MAP.put("bubble_column", Material.BUBBLE_COLUMN);
-		MATERIAL_MAP.put("lava", Material.LAVA);
-		MATERIAL_MAP.put("snow_layer", Material.TOP_SNOW);
-		MATERIAL_MAP.put("fire", Material.FIRE);
-		MATERIAL_MAP.put("decoration", Material.DECORATION);
-		MATERIAL_MAP.put("cobweb", Material.WEB);
-		MATERIAL_MAP.put("sculk", Material.SCULK);
-		MATERIAL_MAP.put("redstone_lamp", Material.BUILDABLE_GLASS);
-		MATERIAL_MAP.put("organic_product", Material.CLAY);
-		MATERIAL_MAP.put("soil", Material.DIRT);
-		MATERIAL_MAP.put("solid_organic", Material.GRASS);
-		MATERIAL_MAP.put("dense_ice", Material.ICE_SOLID);
-		MATERIAL_MAP.put("aggregate", Material.SAND);
-		MATERIAL_MAP.put("sponge", Material.SPONGE);
-		MATERIAL_MAP.put("shulker_box", Material.SHULKER_SHELL);
-		MATERIAL_MAP.put("wood", Material.WOOD);
-		MATERIAL_MAP.put("nether_wood", Material.NETHER_WOOD);
-		MATERIAL_MAP.put("bamboo_sapling", Material.BAMBOO_SAPLING);
-		MATERIAL_MAP.put("bamboo", Material.BAMBOO);
-		MATERIAL_MAP.put("wool", Material.WOOL);
-		MATERIAL_MAP.put("tnt", Material.EXPLOSIVE);
-		MATERIAL_MAP.put("leaves", Material.LEAVES);
-		MATERIAL_MAP.put("glass", Material.GLASS);
-		MATERIAL_MAP.put("ice", Material.ICE);
-		MATERIAL_MAP.put("cactus", Material.CACTUS);
-		MATERIAL_MAP.put("stone", Material.STONE);
-		MATERIAL_MAP.put("metal", Material.METAL);
-		MATERIAL_MAP.put("snow_block", Material.SNOW);
-		MATERIAL_MAP.put("repair_station", Material.HEAVY_METAL);
-		MATERIAL_MAP.put("barrier", Material.BARRIER);
-		MATERIAL_MAP.put("piston", Material.PISTON);
-		MATERIAL_MAP.put("moss_block", Material.MOSS);
-		MATERIAL_MAP.put("gourd", Material.VEGETABLE);
-		MATERIAL_MAP.put("egg", Material.EGG);
-		MATERIAL_MAP.put("cake", Material.CAKE);
-		MATERIAL_MAP.put("amethyst", Material.AMETHYST);
-		MATERIAL_MAP.put("powder_snow", Material.POWDER_SNOW);
-	}
-
-	public static final SerializableDataType<Material> MATERIAL = SerializableDataType.mapped(Material.class, HashBiMap.create(MATERIAL_MAP));
-
-	public static final SerializableDataType<List<Material>> MATERIALS = SerializableDataType.list(MATERIAL);
-
 	public static final SerializableDataType<ArgumentWrapper<NbtPathArgument.NbtPath>> NBT_PATH =
 			SerializableDataType.argumentType(NbtPathArgument.nbtPath());
 
@@ -604,5 +549,6 @@ public final class SerializableDataTypes {
 				return inst;
 			});
 
-	public static final SerializableDataType<TagKey<Biome>> BIOME_TAG = SerializableDataType.tag(Registry.BIOME_REGISTRY);
+	public static final SerializableDataType<TagKey<Biome>> BIOME_TAG = SerializableDataType.tag(Registries.BIOME);
+
 }

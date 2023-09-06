@@ -21,7 +21,7 @@ public class CodeTriggerCriterion extends SimpleCriterionTrigger<CodeTriggerCrit
 
 	@Override
 	@NotNull
-	protected Conditions createInstance(JsonObject jsonObject, @NotNull EntityPredicate.Composite extended, @NotNull DeserializationContext context) {
+	protected Conditions createInstance(JsonObject jsonObject, @NotNull ContextAwarePredicate extended, @NotNull DeserializationContext context) {
 		String triggerId = "empty";
 		if (jsonObject.has("trigger_id")) {
 			triggerId = jsonObject.get("trigger_id").getAsString();
@@ -36,13 +36,13 @@ public class CodeTriggerCriterion extends SimpleCriterionTrigger<CodeTriggerCrit
 	public static class Conditions extends AbstractCriterionTriggerInstance {
 		private final String triggerId;
 
-		public Conditions(EntityPredicate.Composite player, String triggerId) {
+		public Conditions(ContextAwarePredicate player, String triggerId) {
 			super(CodeTriggerCriterion.ID, player);
 			this.triggerId = triggerId;
 		}
 
 		public static CodeTriggerCriterion.Conditions trigger(String triggerId) {
-			return new CodeTriggerCriterion.Conditions(EntityPredicate.Composite.ANY, triggerId);
+			return new CodeTriggerCriterion.Conditions(ContextAwarePredicate.ANY, triggerId);
 		}
 
 		public boolean matches(String triggered) {
