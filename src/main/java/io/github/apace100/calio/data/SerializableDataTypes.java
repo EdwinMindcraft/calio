@@ -16,6 +16,7 @@ import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.SerializationHelper;
 import io.github.apace100.calio.util.ArgumentWrapper;
 import io.github.apace100.calio.util.StatusEffectChance;
+import io.github.apace100.calio.util.TagLike;
 import io.github.edwinmindcraft.calio.api.network.CalioCodecHelper;
 import net.minecraft.ResourceLocationException;
 import net.minecraft.commands.arguments.NbtPathArgument;
@@ -550,5 +551,11 @@ public final class SerializableDataTypes {
 			});
 
 	public static final SerializableDataType<TagKey<Biome>> BIOME_TAG = SerializableDataType.tag(Registries.BIOME);
+
+    public static final SerializableDataType<TagLike<Item>> ITEM_TAG_LIKE = SerializableDataType.tagLike(BuiltInRegistries.ITEM);
+
+    public static final SerializableDataType<TagLike<Block>> BLOCK_TAG_LIKE = SerializableDataType.tagLike(BuiltInRegistries.BLOCK);
+
+    public static final SerializableDataType<TagLike<EntityType<?>>> ENTITY_TYPE_TAG_LIKE = SerializableDataType.tagLike(BuiltInRegistries.ENTITY_TYPE);
 
 }

@@ -46,7 +46,7 @@ public class TagLike<T> {
         if(items.contains(t)) {
             return true;
         }
-        Holder<T> entry = registry.createIntrusiveHolder(t);
+        Holder<T> entry = registry.wrapAsHolder(t);
         for(TagKey<T> tagKey : tags) {
             if(entry.is(tagKey)) {
                 return true;
