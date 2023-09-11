@@ -65,6 +65,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	private final Map<ResourceKey<?>, ReloadFactory<?>> factories;
 	private final Map<ResourceKey<?>, Validator<?>> validators;
 	private final List<ResourceKey<?>> validatorOrder;
+    public static final Set<String> LOADED_NAMESPACES = new HashSet<>();
 
 	public CalioDynamicRegistryManager() {
 		this.registries = new HashMap<>();
@@ -130,6 +131,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 				});
 			}
 			MinecraftForge.EVENT_BUS.post(new CalioDynamicRegistryEvent.LoadComplete(this));
+            LOADED_NAMESPACES.clear();
 			this.dump();
 		}, executor);
 	}
@@ -373,7 +375,10 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 
 		public Map<ResourceLocation, T> reload(Map<ResourceLocation, List<JsonElement>> input) {
 			ImmutableMap.Builder<ResourceLocation, T> builder = ImmutableMap.builder();
-			input.forEach((location, jsonElements) -> this.factory().create(location, jsonElements).forEach(builder::put));
+			input.forEach((location, jsonElements) -> {
+                LOADED_NAMESPACES.add(location.getNamespace());
+                this.factory().create(location, jsonElements).forEach(builder::put);
+            });
 			return builder.build();
 		}
 	}
