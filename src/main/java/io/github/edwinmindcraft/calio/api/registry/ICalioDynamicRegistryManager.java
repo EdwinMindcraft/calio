@@ -146,6 +146,19 @@ public interface ICalioDynamicRegistryManager extends PreparableReloadListener {
 	 */
 	<T> Optional<MappedRegistry<T>> getOrEmpty(ResourceKey<Registry<T>> key);
 
+
+	/**
+	 * Returns or creates the mutable registry corresponding to the given key.
+	 *
+	 * @param key The key of the registry.
+	 *
+	 * @return The registry associated with the given key.
+	 */
+	@NotNull default <T> MappedRegistry<T> getOrCreate(@NotNull ResourceKey<Registry<T>> key) {
+		return this.getOrEmpty(key).orElse(this.reset(key));
+	}
+
+
 	/**
 	 * Registers the given item in the given registry.
 	 *

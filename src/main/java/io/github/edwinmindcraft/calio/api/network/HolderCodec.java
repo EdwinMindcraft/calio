@@ -4,7 +4,7 @@ import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
-import io.github.edwinmindcraft.calio.api.CalioAPI;
+import io.github.edwinmindcraft.calio.common.access.MappedRegistryAccess;
 import net.minecraft.core.Holder;
 import net.minecraft.core.MappedRegistry;
 import net.minecraft.core.Registry;
@@ -13,7 +13,6 @@ import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -30,7 +29,7 @@ public record HolderCodec<A>(Codec<A> direct,
 			ResourceLocation id = stringValue.result().get();
             if (access.get() instanceof MappedRegistry<A> mapped) {
                 ResourceKey<A> key = ResourceKey.create(mapped.key(), id);
-                Optional<Pair<Holder<A>, T>> pair = Optional.of(Pair.of(mapped.createRegistrationLookup().getOrThrow(key), ops.empty()));
+                Optional<Pair<Holder<A>, T>> pair = Optional.of(Pair.of(((MappedRegistryAccess<A>)mapped).calio$getOrCreateHolderOrThrow(key), ops.empty()));
                 return pair.map(DataResult::success).orElseGet(() -> DataResult.error(() -> "Can not decode empty holder."));
             }
             return DataResult.error(() -> "Can not decode holder from non MappedRegistry.");

@@ -12,6 +12,7 @@ import io.github.edwinmindcraft.calio.api.network.primitives.BooleanCodec;
 import io.github.edwinmindcraft.calio.api.network.primitives.DoubleCodec;
 import io.github.edwinmindcraft.calio.api.network.primitives.FloatCodec;
 import io.github.edwinmindcraft.calio.api.network.primitives.IntegerCodec;
+import io.github.edwinmindcraft.calio.common.access.MappedRegistryAccess;
 import net.minecraft.core.*;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -163,7 +164,7 @@ public class CalioCodecHelper {
 	public static <T> Codec<Holder<T>> holderRef(Supplier<Registry<T>> access, ResourceKey<Registry<T>> key, Codec<ResourceLocation> reference) {
         return reference.flatXmap(id -> {
             if (access.get() instanceof MappedRegistry<T> mapped) {
-                return DataResult.success(mapped.createRegistrationLookup().getOrThrow(ResourceKey.create(key, id)));
+                return DataResult.success(((MappedRegistryAccess<T>)mapped).calio$getOrCreateHolderOrThrow(ResourceKey.create(key, id)));
             }
             return DataResult.error(() -> "Failed to get holder from non MappedRegistry '" + key.location() + "'.", Holder.direct(null));
         }, h -> {
