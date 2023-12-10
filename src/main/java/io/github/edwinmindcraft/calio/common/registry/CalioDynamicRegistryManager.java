@@ -22,6 +22,7 @@ import io.github.edwinmindcraft.calio.common.CalioConfig;
 import io.github.edwinmindcraft.calio.common.network.CalioNetwork;
 import io.github.edwinmindcraft.calio.common.network.packet.S2CDynamicRegistryPacket;
 import io.github.edwinmindcraft.calio.common.util.ComparableResourceKey;
+import it.unimi.dsi.fastutil.objects.ObjectAVLTreeSet;
 import net.minecraft.core.*;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.FriendlyByteBuf;
@@ -118,7 +119,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		input.keySet().forEach(x -> this.reset((ResourceKey) x));
 		ConcurrentHashMap<ResourceKey<?>, Map<ResourceLocation, ?>> map = new ConcurrentHashMap<>();
 		CompletableFuture<?>[] completableFutures = this.factories.entrySet().stream()
-				.sorted(Comparator.comparingInt(value -> this.validatorOrder.contains(value.getKey()) ? -1 : this.validatorOrder.indexOf(value.getKey())))
+				.sorted(Comparator.comparingInt(value -> !this.validatorOrder.contains(value.getKey()) ? -1 : this.validatorOrder.indexOf(value.getKey())))
 				.map(x -> CompletableFuture.runAsync(() -> map.put(x.getKey(), x.getValue().reload(input.get(x.getKey()))), executor))
 				.toArray(CompletableFuture[]::new);
 		return CompletableFuture.allOf(completableFutures).thenAcceptAsync(x -> {
@@ -257,7 +258,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	}
 
 	public Set<ResourceKey<Registry<?>>> getRegistryNames() {
-		return (Set<ResourceKey<Registry<?>>>) (Set) this.definitions.keySet().stream().sorted(Comparator.comparingInt(value -> this.validatorOrder.contains(value.resourceKey()) ? -1 : this.validatorOrder.indexOf(value.resourceKey()))).map(ComparableResourceKey::resourceKey).collect(Collectors.toSet());
+		return (Set<ResourceKey<Registry<?>>>) (Set) this.definitions.keySet().stream().sorted(Comparator.comparingInt(value -> !this.validatorOrder.contains(value.resourceKey()) ? -1 : this.validatorOrder.indexOf(value.resourceKey()))).map(ComparableResourceKey::resourceKey).collect(Collectors.toCollection(() -> new ObjectAVLTreeSet<>()));
 	}
 
 	@Override
