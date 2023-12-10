@@ -22,6 +22,7 @@ import io.github.edwinmindcraft.calio.common.CalioConfig;
 import io.github.edwinmindcraft.calio.common.network.CalioNetwork;
 import io.github.edwinmindcraft.calio.common.network.packet.S2CDynamicRegistryPacket;
 import io.github.edwinmindcraft.calio.common.util.ComparableResourceKey;
+import it.unimi.dsi.fastutil.objects.ObjectAVLTreeSet;
 import net.minecraft.core.*;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
@@ -64,6 +65,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	private final Map<ResourceKey<?>, ReloadFactory<?>> factories;
 	private final Map<ResourceKey<?>, Validator<?>> validators;
 	private final List<ResourceKey<?>> validatorOrder;
+    public static final Set<String> LOADED_NAMESPACES = new HashSet<>();
 
 	public CalioDynamicRegistryManager() {
 		this.registries = new HashMap<>();
@@ -116,6 +118,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		input.keySet().forEach(x -> this.reset((ResourceKey) x));
 		ConcurrentHashMap<ResourceKey<?>, Map<ResourceLocation, ?>> map = new ConcurrentHashMap<>();
 		CompletableFuture<?>[] completableFutures = this.factories.entrySet().stream()
+				.sorted(Comparator.comparingInt(value -> !this.validatorOrder.contains(value.getKey()) ? -1 : this.validatorOrder.indexOf(value.getKey())))
 				.map(x -> CompletableFuture.runAsync(() -> map.put(x.getKey(), x.getValue().reload(input.get(x.getKey()))), executor))
 				.toArray(CompletableFuture[]::new);
 		return CompletableFuture.allOf(completableFutures).thenAcceptAsync(x -> {
@@ -129,6 +132,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 				});
 			}
 			MinecraftForge.EVENT_BUS.post(new CalioDynamicRegistryEvent.LoadComplete(this));
+            LOADED_NAMESPACES.clear();
 			this.dump();
 		}, executor);
 	}
@@ -215,12 +219,12 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	private static <T> void readRegistry(FriendlyByteBuf buffer, CalioDynamicRegistryManager manager) {
 		ResourceKey<Registry<T>> key = ResourceKey.createRegistryKey(buffer.readResourceLocation());
 		int count = buffer.readVarInt();
-		WritableRegistry<T> registry = manager.get(key);
+		MappedRegistry<T> registry = manager.get(key);
 		Codec<T> codec = (Codec<T>) manager.definitions.get(new ComparableResourceKey<>(key)).codec();
 		for (int i = 0; i < count; i++) {
 			ResourceKey<T> objectKey = ResourceKey.create(key, buffer.readResourceLocation());
 			T decode = buffer.readWithCodec(codec);
-			registry.registerOrOverride(OptionalInt.empty(), objectKey, decode, Lifecycle.stable());
+			registry.register(objectKey, decode, Lifecycle.stable());
 		}
 	}
 
@@ -253,12 +257,12 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	}
 
 	public Set<ResourceKey<Registry<?>>> getRegistryNames() {
-		return (Set<ResourceKey<Registry<?>>>) (Set) this.definitions.keySet().stream().map(ComparableResourceKey::resourceKey).collect(Collectors.toSet());
+		return (Set<ResourceKey<Registry<?>>>) (Set) this.definitions.keySet().stream().sorted(Comparator.comparingInt(value -> !this.validatorOrder.contains(value.resourceKey()) ? -1 : this.validatorOrder.indexOf(value.resourceKey()))).map(ComparableResourceKey::resourceKey).collect(Collectors.toCollection(() -> new ObjectAVLTreeSet<>()));
 	}
 
 	@Override
 	@SuppressWarnings({"unchecked", "rawtypes"})
-	public <T> WritableRegistry<T> reset(ResourceKey<Registry<T>> key) {
+	public <T> MappedRegistry<T> reset(ResourceKey<Registry<T>> key) {
         ComparableResourceKey<Registry<T>> comparable = new ComparableResourceKey<>(key);
 		this.registries.remove(comparable);
 		MappedRegistry mappedRegistry = this.definitions.get(comparable).newRegistry((ResourceKey) key);
@@ -268,7 +272,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 
 	@Override
 	@SuppressWarnings({"unchecked"})
-    public @NotNull <T> WritableRegistry<T> get(@NotNull ResourceKey<Registry<T>> key) {
+    public @NotNull <T> MappedRegistry<T> get(@NotNull ResourceKey<Registry<T>> key) {
         ComparableResourceKey<Registry<T>> comparable = new ComparableResourceKey<>(key);
         MappedRegistry<?> registry = this.registries.get(comparable);
         if (registry == null)
@@ -372,7 +376,10 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 
 		public Map<ResourceLocation, T> reload(Map<ResourceLocation, List<JsonElement>> input) {
 			ImmutableMap.Builder<ResourceLocation, T> builder = ImmutableMap.builder();
-			input.forEach((location, jsonElements) -> this.factory().create(location, jsonElements).forEach(builder::put));
+			input.forEach((location, jsonElements) -> {
+                LOADED_NAMESPACES.add(location.getNamespace());
+                this.factory().create(location, jsonElements).forEach(builder::put);
+            });
 			return builder.build();
 		}
 	}
