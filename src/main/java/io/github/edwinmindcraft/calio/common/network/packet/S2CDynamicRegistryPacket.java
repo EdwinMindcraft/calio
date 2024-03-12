@@ -100,12 +100,10 @@ public abstract sealed class S2CDynamicRegistryPacket<T> permits S2CDynamicRegis
 		return decoder.apply(registryKey, registry, codec, start, count);
 	}
 
-	private static final Object registryLock = new Object();
-
 	public void handle(Supplier<NetworkEvent.Context> handler) {
 		handler.get().enqueueWork(() -> {
-			synchronized (registryLock) {
-				CalioDynamicRegistryManager instance = CalioDynamicRegistryManager.getInstance(null);
+			CalioDynamicRegistryManager instance = CalioDynamicRegistryManager.getInstance(null);
+			synchronized (instance.getLock(this.key)) {
 				WritableRegistry<T> target = this.start == 0 ? instance.reset(this.key) : instance.get(this.key);
 				for (Map.Entry<ResourceKey<T>, T> entry : this.registry.entrySet())
 					target.registerMapping(this.registry.getId(entry.getValue()), entry.getKey(), entry.getValue(), Lifecycle.experimental());
