@@ -262,7 +262,6 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	@Override
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public <T> MappedRegistry<T> reset(ResourceKey<Registry<T>> key) {
-		this.registries.remove(key);
 		MappedRegistry mappedRegistry = this.definitions.get(key).newRegistry((ResourceKey) key);
 		this.registries.put(key, mappedRegistry);
 		return mappedRegistry;
