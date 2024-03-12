@@ -1,6 +1,6 @@
 package io.github.edwinmindcraft.calio.api;
 
-import io.github.edwinmindcraft.calio.api.ability.IAbilityHolder;
+import io.github.edwinmindcraft.calio.api.ability.AbilityHolder;
 import io.github.edwinmindcraft.calio.api.registry.ICalioDynamicRegistryManager;
 import io.github.edwinmindcraft.calio.common.registry.CalioDynamicRegistryManager;
 import net.minecraft.core.RegistryAccess;
@@ -8,12 +8,9 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.CommonLevelAccessor;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.CapabilityManager;
-import net.minecraftforge.common.capabilities.CapabilityToken;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.fml.util.thread.EffectiveSide;
-import net.minecraftforge.server.ServerLifecycleHooks;
+import net.neoforged.fml.util.thread.EffectiveSide;
+import net.neoforged.neoforge.capabilities.EntityCapability;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Contract;
@@ -22,7 +19,7 @@ import org.jetbrains.annotations.Nullable;
 public class CalioAPI {
 	public static final Logger LOGGER = LogManager.getLogger("Calio");
 	public static final String MODID = "calio";
-	public static Capability<IAbilityHolder> ABILITY_HOLDER = CapabilityManager.get(new CapabilityToken<>() {});
+	public static EntityCapability<AbilityHolder, Void> ABILITY_HOLDER = EntityCapability.createVoid(new ResourceLocation(MODID, "ability_holder"), AbilityHolder.class);
 
 	@Contract(pure = true)
 	public static ResourceLocation resource(String path) {
@@ -64,7 +61,7 @@ public class CalioAPI {
 	}
 
 	@Contract(pure = true)
-	public static LazyOptional<IAbilityHolder> getAbilityHolder(Entity entity) {
+	public static AbilityHolder getAbilityHolder(Entity entity) {
 		return entity.getCapability(ABILITY_HOLDER);
 	}
 }

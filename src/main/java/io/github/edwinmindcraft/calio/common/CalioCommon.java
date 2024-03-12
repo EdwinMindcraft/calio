@@ -1,6 +1,6 @@
 package io.github.edwinmindcraft.calio.common;
 
-import io.github.edwinmindcraft.calio.api.ability.IAbilityHolder;
+import io.github.edwinmindcraft.calio.api.ability.AbilityHolder;
 import io.github.edwinmindcraft.calio.api.registry.PlayerAbilities;
 import io.github.edwinmindcraft.calio.common.network.CalioNetwork;
 import io.github.edwinmindcraft.calio.common.registry.CalioRegisters;
@@ -24,7 +24,7 @@ public class CalioCommon {
 
 
 	private static void registerCapabilities(RegisterCapabilitiesEvent event) {
-		event.register(IAbilityHolder.class);
+		event.register(AbilityHolder.class);
 	}
 
 	public static void commonSetup(FMLCommonSetupEvent event) {

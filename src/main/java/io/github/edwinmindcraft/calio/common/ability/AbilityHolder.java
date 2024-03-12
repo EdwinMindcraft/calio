@@ -3,7 +3,6 @@ package io.github.edwinmindcraft.calio.common.ability;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import io.github.edwinmindcraft.calio.api.CalioAPI;
-import io.github.edwinmindcraft.calio.api.ability.IAbilityHolder;
 import io.github.edwinmindcraft.calio.api.ability.PlayerAbility;
 import io.github.edwinmindcraft.calio.api.registry.PlayerAbilities;
 import net.minecraft.client.Minecraft;
@@ -28,7 +27,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class AbilityHolder implements ICapabilitySerializable<Tag>, IAbilityHolder {
+public class AbilityHolder implements ICapabilitySerializable<Tag>, io.github.edwinmindcraft.calio.api.ability.AbilityHolder {
 	public static final ResourceLocation ID = CalioAPI.resource("ability_holder");
 
 	private final Multimap<PlayerAbility, ResourceLocation> abilities;
@@ -97,7 +96,7 @@ public class AbilityHolder implements ICapabilitySerializable<Tag>, IAbilityHold
         }
     }
 
-	private final LazyOptional<IAbilityHolder> thisOptional = LazyOptional.of(() -> this);
+	private final LazyOptional<io.github.edwinmindcraft.calio.api.ability.AbilityHolder> thisOptional = LazyOptional.of(() -> this);
 
 	@NotNull
 	@Override

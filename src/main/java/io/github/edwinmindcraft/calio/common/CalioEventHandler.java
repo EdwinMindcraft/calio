@@ -4,8 +4,7 @@ import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.registry.DataObjectRegistry;
 import io.github.apace100.calio.resource.OrderedResourceListenerManager;
 import io.github.edwinmindcraft.calio.api.CalioAPI;
-import io.github.edwinmindcraft.calio.api.ability.IAbilityHolder;
-import io.github.edwinmindcraft.calio.common.ability.AbilityHolder;
+import io.github.edwinmindcraft.calio.api.ability.AbilityHolder;
 import io.github.edwinmindcraft.calio.common.registry.CalioDynamicRegistryManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -54,14 +53,14 @@ public class CalioEventHandler {
 	@SubscribeEvent
 	public static void onCapability(AttachCapabilitiesEvent<Entity> event) {
 		if (event.getObject() instanceof Player player)
-			event.addCapability(AbilityHolder.ID, new AbilityHolder(player));
+			event.addCapability(io.github.edwinmindcraft.calio.common.ability.AbilityHolder.ID, new io.github.edwinmindcraft.calio.common.ability.AbilityHolder(player));
 	}
 
 	@SubscribeEvent(priority = EventPriority.HIGH)
 	public static void playerFirstTick(TickEvent.PlayerTickEvent event) {
 		if (event.phase == TickEvent.Phase.START) {
 			//Trigger removals on HIGH, as most mods will have their modifications on NORMAL
-			if (CalioAPI.getAbilityHolder(event.player).map(IAbilityHolder::applyRemovals).orElse(false))
+			if (CalioAPI.getAbilityHolder(event.player).map(AbilityHolder::applyRemovals).orElse(false))
 				event.player.onUpdateAbilities();
 		}
 	}
@@ -72,7 +71,7 @@ public class CalioEventHandler {
 		if (event.phase == TickEvent.Phase.START) {
 			//Trigger additions on LOW, as most mods will have their modifications on NORMAL
 			//This also allows mods that would control everything to have LOWEST to place their overrides.
-			if (CalioAPI.getAbilityHolder(event.player).map(IAbilityHolder::applyAdditions).orElse(false))
+			if (CalioAPI.getAbilityHolder(event.player).map(AbilityHolder::applyAdditions).orElse(false))
 				event.player.onUpdateAbilities();
 		}
 	}

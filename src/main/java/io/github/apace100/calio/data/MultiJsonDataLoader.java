@@ -48,7 +48,7 @@ public abstract class MultiJsonDataLoader extends SimplePreparableReloadListener
 					resourcesHandled.add(resource.sourcePackId());
 					try {
 						try (Reader reader = resource.openAsReader()) {
-							JsonElement jsonElement = GsonHelper.fromJson(this.gson, reader, JsonElement.class);
+							JsonElement jsonElement = GsonHelper.fromNullableJson(this.gson, reader, JsonElement.class, false);
 							if (jsonElement != null) {
 								if (map.containsKey(identifier2)) {
 									map.get(identifier2).add(jsonElement);

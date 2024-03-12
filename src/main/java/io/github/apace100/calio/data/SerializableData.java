@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.*;
+import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -50,7 +51,7 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 	}
 
 	public Instance read(FriendlyByteBuf buffer) {
-		return buffer.readWithCodec(NbtOps.INSTANCE, this.codec());
+		return buffer.readWithCodec(NbtOps.INSTANCE, this.codec(), NbtAccounter.unlimitedHeap());
 	}
 
 	public Instance read(JsonObject jsonObject) {
