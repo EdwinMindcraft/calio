@@ -14,6 +14,6 @@ public class ClientHelper {
 		if (instance == null) return true; // Data Context
 		if (instance.getConnection() == null) return true; // Outside a world
 		if (ServerLifecycleHooks.getCurrentServer() == null) return false; // No server.
-		return access != null && access != instance.getConnection().registryAccess();
+		return access != null;
 	}
 }
