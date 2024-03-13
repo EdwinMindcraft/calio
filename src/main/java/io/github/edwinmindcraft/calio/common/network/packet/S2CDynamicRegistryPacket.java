@@ -102,10 +102,12 @@ public abstract sealed class S2CDynamicRegistryPacket<T> permits S2CDynamicRegis
 	public void handle(Supplier<NetworkEvent.Context> handler) {
 		handler.get().enqueueWork(() -> {
 			CalioDynamicRegistryManager instance = CalioDynamicRegistryManager.getInstance(null);
-			WritableRegistry<T> target = this.start == 0 ? instance.reset(this.key) : instance.get(this.key);
-			for (Map.Entry<ResourceKey<T>, T> entry : this.registry.entrySet())
-				target.registerOrOverride(OptionalInt.of(this.registry.getId(entry.getValue())), entry.getKey(), entry.getValue(), Lifecycle.experimental());
-			instance.dump();
+			synchronized (instance.getLock(this.key)) {
+				WritableRegistry<T> target = this.start == 0 ? instance.reset(this.key) : instance.get(this.key);
+				for (Map.Entry<ResourceKey<T>, T> entry : this.registry.entrySet())
+					target.registerOrOverride(OptionalInt.of(this.registry.getId(entry.getValue())), entry.getKey(), entry.getValue(), Lifecycle.experimental());
+				instance.dump();
+			}
 		});
 		if (this instanceof S2CDynamicRegistryPacket.Login<T>)
 			CalioNetwork.CHANNEL.reply(new C2SAcknowledgePacket(), handler.get());

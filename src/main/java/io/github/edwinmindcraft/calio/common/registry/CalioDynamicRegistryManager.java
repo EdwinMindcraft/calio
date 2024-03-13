@@ -63,6 +63,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	private final Map<ResourceKey<?>, RegistryDefinition<?>> definitions;
 	private final Map<ResourceKey<?>, ReloadFactory<?>> factories;
 	private final Map<ResourceKey<?>, Validator<?>> validators;
+	private final Map<ResourceKey<?>, Object> locks;
 	private final List<ResourceKey<?>> validatorOrder;
     public static final Set<String> LOADED_NAMESPACES = new HashSet<>();
 
@@ -71,6 +72,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		this.definitions = new HashMap<>();
 		this.factories = new HashMap<>();
 		this.validators = new HashMap<>();
+		this.locks = new HashMap<>();
 		this.lock = false;
 		ModLoader.get().postEvent(new CalioDynamicRegistryEvent.Initialize(this));
 		CalioAPI.LOGGER.info("CDRM Initialized with {} registries", this.registries.size());
@@ -236,6 +238,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		this.definitions.put(key, value);
 		this.reset(key);
 		this.registries.computeIfAbsent(key, k -> value.newRegistry(key));
+		this.locks.put(key, new Object());
 	}
 
 	@Override
@@ -286,6 +289,10 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		if (!name.isFor(registry))
 			throw new IllegalArgumentException("Registry key " + name + " doesn't target registry " + registry + ".");
 		return null;
+	}
+
+	public <T> Object getLock(ResourceKey<Registry<T>> registry) {
+		return this.locks.get(registry);
 	}
 
 	public void encode(FriendlyByteBuf buffer) {
