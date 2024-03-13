@@ -19,8 +19,14 @@ import io.github.apace100.calio.util.ArgumentWrapper;
 import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.api.network.CalioCodecHelper;
 import io.github.edwinmindcraft.calio.api.network.EnumValueCodec;
+import io.netty.buffer.ByteBufInputStream;
+import io.netty.buffer.ByteBufOutputStream;
 import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.EncoderException;
 import net.minecraft.core.Registry;
+import net.minecraft.nbt.NbtAccounter;
+import net.minecraft.nbt.NbtIo;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.Tag;
@@ -30,6 +36,7 @@ import net.minecraftforge.registries.IForgeRegistry;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -67,8 +74,8 @@ public class SerializableDataType<T> implements Codec<T> {
 	public SerializableDataType(Class<T> dataClass, Codec<T> codec) {
 		this.dataClass = dataClass;
 		this.codec = codec;
-		this.send = (buf, t) -> buf.writeWithCodec(this.codec, t);
-		this.receive = buf -> buf.readWithCodec(codec);
+		this.send = (buf, t) -> writeWithCodec(buf, this.codec, t);
+		this.receive = buf -> readWithCodec(buf, codec);
 		this.read = jsonElement -> codec.decode(JsonOps.INSTANCE, jsonElement).map(Pair::getFirst).getOrThrow(false, s -> {
 			throw new JsonParseException(s);
 		});
@@ -242,5 +249,43 @@ public class SerializableDataType<T> implements Codec<T> {
 						throw new RuntimeException("Wrong syntax in argument type data", e);
 					}
 				});
+	}
+
+	private void writeWithCodec(FriendlyByteBuf buf, Codec<T> codec, T data) {
+		DataResult<net.minecraft.nbt.Tag> dataResult = codec.encodeStart(NbtOps.INSTANCE, data);
+		dataResult.error().ifPresent(partialResult -> {
+			throw new EncoderException("Failed to encode: " + partialResult.message() + " " + data);
+		});
+		try {
+			NbtIo.writeUnnamedTag(dataResult.result().get(), new ByteBufOutputStream(buf));
+		} catch (IOException ioexception) {
+			throw new EncoderException("Failed to encode SerializableDataType: " + ioexception);
+		}
+	}
+
+	private T readWithCodec(FriendlyByteBuf buf, Codec<T> codec) {
+		net.minecraft.nbt.Tag compoundTag = this.readAnySizeNbt(buf);
+		DataResult<T> dataResult = codec.parse(NbtOps.INSTANCE, compoundTag);
+		dataResult.error().ifPresent(partialResult -> {
+			throw new EncoderException("Failed to decode: " + partialResult.message() + " " + compoundTag);
+		});
+		return dataResult.result().get();
+	}
+
+
+	@Nullable
+	private net.minecraft.nbt.Tag readAnySizeNbt(FriendlyByteBuf buf) {
+		int i = buf.readerIndex();
+		byte b0 = buf.readByte();
+		if (b0 == 0) {
+			return null;
+		} else {
+			buf.readerIndex(i);
+			try {
+				return NbtIo.readUnnamedTag(new ByteBufInputStream(buf), 0, NbtAccounter.UNLIMITED);
+			} catch (IOException ioexception) {
+				throw new EncoderException(ioexception);
+			}
+		}
 	}
 }
