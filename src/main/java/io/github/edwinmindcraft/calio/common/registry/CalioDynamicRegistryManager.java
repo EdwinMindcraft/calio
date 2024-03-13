@@ -65,6 +65,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	private final Map<ResourceKey<?>, RegistryDefinition<?>> definitions;
 	private final Map<ResourceKey<?>, ReloadFactory<?>> factories;
 	private final Map<ResourceKey<?>, Validator<?>> validators;
+	private final Map<ResourceKey<?>, Object> locks;
 	private final List<ResourceKey<?>> validatorOrder;
 
 	public CalioDynamicRegistryManager() {
@@ -72,6 +73,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		this.definitions = new HashMap<>();
 		this.factories = new HashMap<>();
 		this.validators = new HashMap<>();
+		this.locks = new HashMap<>();
 		this.lock = false;
 		MinecraftForge.EVENT_BUS.post(new CalioDynamicRegistryEvent.Initialize(this));
 		this.lock = true;
@@ -237,6 +239,7 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		this.definitions.put(key, value);
 		this.reset(key);
 		this.registries.computeIfAbsent(key, k -> value.newRegistry(key));
+		this.locks.put(key, new Object());
 	}
 
 	@Override
@@ -262,7 +265,6 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 	@Override
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public <T> WritableRegistry<T> reset(ResourceKey<Registry<T>> key) {
-		this.registries.remove(key);
 		MappedRegistry mappedRegistry = this.definitions.get(key).newRegistry((ResourceKey) key);
 		this.registries.put(key, mappedRegistry);
 		return mappedRegistry;
@@ -288,6 +290,10 @@ public class CalioDynamicRegistryManager implements ICalioDynamicRegistryManager
 		if (!name.isFor(registry))
 			throw new IllegalArgumentException("Registry key " + name + " doesn't target registry " + registry + ".");
 		return null;
+	}
+
+	public <T> Object getLock(ResourceKey<Registry<T>> registry) {
+		return this.locks.get(registry);
 	}
 
 	public void encode(FriendlyByteBuf buffer) {
