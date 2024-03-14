@@ -19,9 +19,13 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
+import net.minecraft.util.ExtraCodecs;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.registries.IForgeRegistry;
 import org.apache.commons.lang3.Validate;
+import org.apache.commons.lang3.mutable.MutableBoolean;
+import org.apache.commons.lang3.mutable.MutableDouble;
+import org.apache.commons.lang3.mutable.MutableFloat;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 
@@ -35,29 +39,32 @@ public class CalioCodecHelper {
 	 * Defines a boolean codec that support native conversion from
 	 * string to boolean for json primitives.
 	 */
-	public static final Codec<Boolean> BOOL = new BooleanCodec();
+	public static final Codec<Boolean> BOOL = BooleanCodec.INSTANCE;
 	/**
 	 * Defines an integer codec that support native conversion from
 	 * string to int for json primitives.
 	 */
-	public static final Codec<Integer> INT = new IntegerCodec();
+	public static final Codec<Integer> INT = IntegerCodec.INSTANCE;
 	/**
 	 * Defines a double codec that support native conversion from
 	 * string to double for json primitives.
 	 */
-	public static final Codec<Double> DOUBLE = new DoubleCodec();
+	public static final Codec<Double> DOUBLE = DoubleCodec.INSTANCE;
 	/**
 	 * Defines a double codec that support native conversion from
 	 * string to double for json primitives.
 	 */
-	public static final Codec<Float> FLOAT = new FloatCodec();
+	public static final Codec<Float> FLOAT = FloatCodec.INSTANCE;
+	public static final Codec<MutableBoolean> MUTABLE_BOOLEAN = BOOL.xmap(MutableBoolean::new, MutableBoolean::toBoolean);
+	public static final Codec<MutableInt> MUTABLE_INT = INT.xmap(MutableInt::new, MutableInt::toInteger);
+	public static final Codec<MutableDouble> MUTABLE_DOUBLE = DOUBLE.xmap(MutableDouble::new, MutableDouble::toDouble);
+	public static final Codec<MutableFloat> MUTABLE_FLOAT = FLOAT.xmap(MutableFloat::new, MutableFloat::toFloat);
 
 	/**
 	 * Creates a codec of a registry key, used for dynamic registries (Biomes, Dimensions...)
 	 *
 	 * @param registry The root key of the registry.
 	 * @param <T>      The type of the registry.
-	 *
 	 * @return A codec for the given {@link ResourceKey}
 	 */
 	public static <T> Codec<ResourceKey<T>> resourceKey(ResourceKey<? extends Registry<T>> registry) {
@@ -70,9 +77,7 @@ public class CalioCodecHelper {
 	 *
 	 * @param codec The codec to make a weighted list of.
 	 * @param <T>   The type of the codec.
-	 *
 	 * @return A new weighted list codec.
-	 *
 	 * @see net.minecraft.world.entity.ai.behavior.ShufflingList#codec(Codec) for minecraft's weighted list.
 	 */
 	public static <T> Codec<FilterableWeightedList<T>> weightedListOf(Codec<T> codec) {
@@ -93,7 +98,6 @@ public class CalioCodecHelper {
 	 *
 	 * @param codec The codec to make a list of.
 	 * @param <T>   The type of the codec.
-	 *
 	 * @return A new list codec.
 	 */
 	public static <T> Codec<List<T>> listOf(Codec<T> codec) {
@@ -107,7 +111,6 @@ public class CalioCodecHelper {
 	 *
 	 * @param codec The codec to make a list of.
 	 * @param <T>   The type of the codec.
-	 *
 	 * @return A new list codec.
 	 */
 	public static <T> Codec<List<T>> optionalListOf(Codec<Optional<T>> codec) {
@@ -125,7 +128,6 @@ public class CalioCodecHelper {
 	 * @param singular The singular term for the field
 	 * @param plural   The plural term for the field
 	 * @param <T>      The type of the element of the list.
-	 *
 	 * @return The created codec
 	 */
 	public static <T> MapCodec<List<T>> listOf(Codec<T> codec, String singular, String plural) {
@@ -134,8 +136,8 @@ public class CalioCodecHelper {
 		Validate.notNull(plural, "Plural cannot be null");
 		Codec<List<T>> listCodec = listOf(codec);
 		return RecordCodecBuilder.mapCodec(instance -> instance.group(
-				optionalField(listCodec, singular, ImmutableList.of()).forGetter(x -> x.size() == 1 ? x : ImmutableList.of()),
-				optionalField(listCodec, plural, ImmutableList.of()).forGetter(x -> x.size() == 1 ? ImmutableList.of() : x)
+				ExtraCodecs.strictOptionalField(listCodec, singular, ImmutableList.of()).forGetter(x -> x.size() == 1 ? x : ImmutableList.of()),
+				ExtraCodecs.strictOptionalField(listCodec, plural, ImmutableList.of()).forGetter(x -> x.size() == 1 ? ImmutableList.of() : x)
 		).apply(instance, (ls1, ls2) -> ImmutableList.<T>builder().addAll(ls1).addAll(ls2).build()));
 	}
 
@@ -145,7 +147,6 @@ public class CalioCodecHelper {
 	 *
 	 * @param codec The codec to make a set of.
 	 * @param <T>   The type of the codec
-	 *
 	 * @return A new set codec.
 	 */
 	public static <T> Codec<Set<T>> setOf(Codec<T> codec) {
@@ -162,18 +163,18 @@ public class CalioCodecHelper {
 	}
 
 	public static <T> Codec<Holder<T>> holderRef(Supplier<Registry<T>> access, ResourceKey<Registry<T>> key, Codec<ResourceLocation> reference) {
-        return reference.flatXmap(id -> {
-            if (access.get() instanceof MappedRegistry<T> mapped) {
-                return DataResult.success(((MappedRegistryAccess<T>)mapped).calio$getOrCreateHolderOrThrow(ResourceKey.create(key, id)));
-            }
-            return DataResult.error(() -> "Failed to get holder from non MappedRegistry '" + key.location() + "'.", Holder.direct(null));
-        }, h -> {
-            try {
-                return h.unwrap().map(x -> DataResult.success(x.location()), t -> access.get().getResourceKey(t).map(ResourceKey::location).map(DataResult::success).orElseGet(() -> DataResult.error(() -> "Key not in registry.")));
-            } catch (IllegalStateException e) {
-                return DataResult.error(() -> "Completely unbound input.");
-            }
-        });
+		return reference.flatXmap(id -> {
+			if (access.get() instanceof MappedRegistry<T> mapped) {
+				return DataResult.success(((MappedRegistryAccess<T>) mapped).calio$getOrCreateHolderOrThrow(ResourceKey.create(key, id)));
+			}
+			return DataResult.error(() -> "Failed to get holder from non MappedRegistry '" + key.location() + "'.", Holder.direct(null));
+		}, h -> {
+			try {
+				return h.unwrap().map(x -> DataResult.success(x.location()), t -> access.get().getResourceKey(t).map(ResourceKey::location).map(DataResult::success).orElseGet(() -> DataResult.error(() -> "Key not in registry.")));
+			} catch (IllegalStateException e) {
+				return DataResult.error(() -> "Completely unbound input.");
+			}
+		});
 	}
 
 	public static <T> Codec<Holder<T>> holderRef(ResourceKey<Registry<T>> key, Codec<ResourceLocation> reference) {
@@ -198,36 +199,6 @@ public class CalioCodecHelper {
 	public static <T> CodecSet<T> forDynamicRegistry(ResourceKey<Registry<T>> key, Codec<ResourceLocation> reference, Codec<T> direct) {
 		Supplier<Registry<T>> supplier = () -> CalioAPI.getDynamicRegistries().get(key);
 		return codecSet(supplier, key, reference, direct);
-	}
-
-	public static <A> PropagatingOptionalFieldCodec<A> optionalField(Codec<A> codec, String name) {
-		Validate.notNull(codec, "Codec cannot be null");
-		Validate.notNull(name, "Name cannot be null");
-		return new PropagatingOptionalFieldCodec<>(name, codec);
-	}
-
-	public static <A> PropagatingDefaultedOptionalFieldCodec<A> optionalField(Codec<A> codec, String name, A defaultValue) {
-		Validate.notNull(codec, "Codec cannot be null");
-		Validate.notNull(name, "Name cannot be null");
-		Validate.notNull(defaultValue, "Default value cannot be null");
-		return new PropagatingDefaultedOptionalFieldCodec<>(name, codec, () -> defaultValue);
-	}
-
-	public static <A> PropagatingDefaultedOptionalFieldCodec<A> optionalField(Codec<A> codec, String name, Supplier<A> defaultValue) {
-		Validate.notNull(codec, "Codec cannot be null");
-		Validate.notNull(name, "Name cannot be null");
-		Validate.notNull(defaultValue, "Default value cannot be null");
-		return new PropagatingDefaultedOptionalFieldCodec<>(name, codec, defaultValue);
-	}
-
-	public static <A> PropagatingDefaultedOptionalFieldCodec<Holder<A>> registryDefaultedField(Codec<Holder<A>> codec, String name, ResourceKey<Registry<A>> registry, Supplier<IForgeRegistry<A>> builtin) {
-		Supplier<Holder<A>> supplier = () -> CalioAPI.getDynamicRegistries().get(registry) instanceof DefaultedMappedRegistry<A> def ? def.getHolderOrThrow(ResourceKey.create(registry, def.getDefaultKey())) : builtin.get().getHolder(builtin.get().getDefaultKey()).orElseThrow();
-		return optionalField(codec, name, supplier);
-	}
-
-	public static <A> PropagatingDefaultedOptionalFieldCodec<Holder<A>> registryField(Codec<Holder<A>> codec, String name, ResourceKey<A> value, ResourceKey<Registry<A>> registry, Supplier<IForgeRegistry<A>> builtin) {
-		Supplier<Holder<A>> supplier = () -> CalioAPI.getDynamicRegistries().get(registry) instanceof DefaultedMappedRegistry<A> def ? def.getHolderOrThrow(value) : builtin.get().getHolder(value).orElseThrow();
-		return optionalField(codec, name, supplier);
 	}
 
 	public static final Codec<Component> COMPONENT_CODEC = new IContextAwareCodec<>() {
@@ -255,17 +226,17 @@ public class CalioCodecHelper {
 
 	public static MapCodec<Vec3> vec3d(String xName, String yName, String zName) {
 		return RecordCodecBuilder.mapCodec(instance -> instance.group(
-				CalioCodecHelper.optionalField(CalioCodecHelper.DOUBLE, xName, 0.0).forGetter(Vec3::x),
-				CalioCodecHelper.optionalField(CalioCodecHelper.DOUBLE, yName, 0.0).forGetter(Vec3::y),
-				CalioCodecHelper.optionalField(CalioCodecHelper.DOUBLE, zName, 0.0).forGetter(Vec3::z)
+				ExtraCodecs.strictOptionalField(CalioCodecHelper.DOUBLE, xName, 0.0).forGetter(Vec3::x),
+				ExtraCodecs.strictOptionalField(CalioCodecHelper.DOUBLE, yName, 0.0).forGetter(Vec3::y),
+				ExtraCodecs.strictOptionalField(CalioCodecHelper.DOUBLE, zName, 0.0).forGetter(Vec3::z)
 		).apply(instance, Vec3::new));
 	}
 
 	public static MapCodec<Vector3f> vec3f(String xName, String yName, String zName) {
 		return RecordCodecBuilder.mapCodec(instance -> instance.group(
-				CalioCodecHelper.optionalField(CalioCodecHelper.FLOAT, xName, 0.0F).forGetter(Vector3f::x),
-				CalioCodecHelper.optionalField(CalioCodecHelper.FLOAT, yName, 0.0F).forGetter(Vector3f::y),
-				CalioCodecHelper.optionalField(CalioCodecHelper.FLOAT, zName, 0.0F).forGetter(Vector3f::z)
+				ExtraCodecs.strictOptionalField(CalioCodecHelper.FLOAT, xName, 0.0F).forGetter(Vector3f::x),
+				ExtraCodecs.strictOptionalField(CalioCodecHelper.FLOAT, yName, 0.0F).forGetter(Vector3f::y),
+				ExtraCodecs.strictOptionalField(CalioCodecHelper.FLOAT, zName, 0.0F).forGetter(Vector3f::z)
 		).apply(instance, Vector3f::new));
 	}
 
@@ -275,9 +246,9 @@ public class CalioCodecHelper {
 
 	public static MapCodec<BlockPos> blockPos(String xName, String yName, String zName) {
 		return RecordCodecBuilder.mapCodec(instance -> instance.group(
-				CalioCodecHelper.optionalField(CalioCodecHelper.INT, xName, 0).forGetter(BlockPos::getX),
-				CalioCodecHelper.optionalField(CalioCodecHelper.INT, yName, 0).forGetter(BlockPos::getY),
-				CalioCodecHelper.optionalField(CalioCodecHelper.INT, zName, 0).forGetter(BlockPos::getZ)
+				ExtraCodecs.strictOptionalField(CalioCodecHelper.INT, xName, 0).forGetter(BlockPos::getX),
+				ExtraCodecs.strictOptionalField(CalioCodecHelper.INT, yName, 0).forGetter(BlockPos::getY),
+				ExtraCodecs.strictOptionalField(CalioCodecHelper.INT, zName, 0).forGetter(BlockPos::getZ)
 		).apply(instance, BlockPos::new));
 	}
 
@@ -301,7 +272,9 @@ public class CalioCodecHelper {
 
 		private final Codec<T> codec;
 
-		private CodecJsonAdapter(Codec<T> codec) {this.codec = codec;}
+		private CodecJsonAdapter(Codec<T> codec) {
+			this.codec = codec;
+		}
 
 		@Override
 		public T deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
@@ -312,7 +285,8 @@ public class CalioCodecHelper {
 
 		@Override
 		public JsonElement serialize(T src, Type typeOfSrc, JsonSerializationContext context) {
-			return this.codec.encodeStart(JsonOps.INSTANCE, src).getOrThrow(false, s -> {});
+			return this.codec.encodeStart(JsonOps.INSTANCE, src).getOrThrow(false, s -> {
+			});
 		}
 	}
 }

@@ -10,7 +10,9 @@ import com.mojang.serialization.codecs.PrimitiveCodec;
  * This is only so I can stop getting yelled at because fabric considers
  * strings to be freely castable into any other type.
  */
-public class IntegerCodec implements PrimitiveCodec<Integer> {
+public enum IntegerCodec implements PrimitiveCodec<Integer> {
+	INSTANCE;
+
 	@Override
 	public <T> DataResult<Integer> read(DynamicOps<T> ops, T input) {
 		DataResult<Integer> base = ops.getNumberValue(input).map(Number::intValue);
@@ -19,7 +21,8 @@ public class IntegerCodec implements PrimitiveCodec<Integer> {
 		if (input instanceof JsonPrimitive primitive) {
 			try {
 				return DataResult.success(primitive.getAsInt());
-			} catch (Exception ignored) {}
+			} catch (Exception ignored) {
+			}
 		}
 		return base;
 	}

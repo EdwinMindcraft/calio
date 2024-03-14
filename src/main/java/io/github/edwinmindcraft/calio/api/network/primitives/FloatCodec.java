@@ -10,7 +10,9 @@ import com.mojang.serialization.codecs.PrimitiveCodec;
  * This is only so I can stop getting yelled at because fabric considers
  * strings to be freely castable into any other type.
  */
-public class FloatCodec implements PrimitiveCodec<Float> {
+public enum FloatCodec implements PrimitiveCodec<Float> {
+	INSTANCE;
+
 	@Override
 	public <T> DataResult<Float> read(DynamicOps<T> ops, T input) {
 		DataResult<Float> base = ops.getNumberValue(input).map(Number::floatValue);

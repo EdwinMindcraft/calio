@@ -349,8 +349,8 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<ItemStack> ITEM_STACK = new SerializableDataType<>(ItemStack.class, RecordCodecBuilder.create(instance -> instance.group(
 			ITEM.fieldOf("item").forGetter(ItemStack::getItem),
-			CalioCodecHelper.optionalField(CalioCodecHelper.INT, "amount", 1).forGetter(ItemStack::getCount),
-			CalioCodecHelper.optionalField(NBT, "tag").forGetter(x -> Optional.ofNullable(x.getTag()))
+			ExtraCodecs.strictOptionalField(CalioCodecHelper.INT, "amount", 1).forGetter(ItemStack::getCount),
+			ExtraCodecs.strictOptionalField(NBT, "tag").forGetter(x -> Optional.ofNullable(x.getTag()))
 	).apply(instance, (t1, t2, t3) -> {
 		ItemStack itemStack = new ItemStack(t1, t2);
 		t3.ifPresent(itemStack::setTag);

@@ -10,7 +10,9 @@ import com.mojang.serialization.codecs.PrimitiveCodec;
  * This is only so I can stop getting yelled at because fabric considers
  * strings to be freely castable into any other type.
  */
-public class BooleanCodec implements PrimitiveCodec<Boolean> {
+public enum BooleanCodec implements PrimitiveCodec<Boolean> {
+	INSTANCE;
+
 	@Override
 	public <T> DataResult<Boolean> read(DynamicOps<T> ops, T input) {
 		DataResult<Boolean> base = ops.getBooleanValue(input);
@@ -19,7 +21,8 @@ public class BooleanCodec implements PrimitiveCodec<Boolean> {
 		if (input instanceof JsonPrimitive primitive) {
 			try {
 				return DataResult.success(primitive.getAsBoolean());
-			} catch (Exception ignored) {}
+			} catch (Exception ignored) {
+			}
 		}
 		return base;
 	}

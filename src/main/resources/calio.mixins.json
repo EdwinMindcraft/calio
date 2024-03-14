@@ -1,13 +1,14 @@
 {
-  "required": true,
-  "minVersion": "0.8.5",
-  "package": "io.github.edwinmindcraft.calio.mixin",
-  "compatibilityLevel": "JAVA_17",
-  "mixins": [
-    "MappedRegistryMixin"
-  ],
-  "refmap": "calio.refmap.json",
-  "injectors": {
-    "defaultRequire": 1
+	"required": true,
+	"minVersion": "0.8.5",
+	"package": "io.github.edwinmindcraft.calio.mixin",
+	"compatibilityLevel": "JAVA_17",
+	"mixins": [
+		"MappedRegistryMixin",
+		"RegistryDataLoaderMixin"
+	],
+	"refmap": "calio.refmap.json",
+	"injectors": {
+		"defaultRequire": 1
 	}
 }
