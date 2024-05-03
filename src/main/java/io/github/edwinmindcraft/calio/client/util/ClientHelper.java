@@ -14,6 +14,8 @@ public class ClientHelper {
 		if (instance == null) return true; // Data Context
 		if (instance.getConnection() == null) return true; // Outside a world
 		if (ServerLifecycleHooks.getCurrentServer() == null) return false; // No server.
+		if (!ServerLifecycleHooks.getCurrentServer().isDedicatedServer()) return true; // Access on non-dedicated servers are the same as the client.
+		// Read https://github.com/EdwinMindcraft/calio/issues/4 for more information.
 		return access != null && access != instance.getConnection().registryAccess();
 	}
 }
