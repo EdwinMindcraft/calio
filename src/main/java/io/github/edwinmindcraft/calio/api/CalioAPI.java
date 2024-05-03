@@ -3,6 +3,7 @@ package io.github.edwinmindcraft.calio.api;
 import io.github.edwinmindcraft.calio.api.ability.IAbilityHolder;
 import io.github.edwinmindcraft.calio.api.registry.ICalioDynamicRegistryManager;
 import io.github.edwinmindcraft.calio.common.registry.CalioDynamicRegistryManager;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -41,8 +42,11 @@ public class CalioAPI {
 
 	@Contract(pure = true)
 	private static RegistryAccess getSidedRegistryAccess() {
-		if (EffectiveSide.get().isClient())
-			return null;
+		if (EffectiveSide.get().isClient()) {
+			if (Minecraft.getInstance().level == null)
+				return null;
+			return Minecraft.getInstance().level.registryAccess();
+		}
 		if (ServerLifecycleHooks.getCurrentServer() != null)
 			return ServerLifecycleHooks.getCurrentServer().registryAccess();
 		return RegistryAccess.EMPTY;
