@@ -42,7 +42,7 @@ public class CalioAPI {
 
 	@Contract(pure = true)
 	private static RegistryAccess getSidedRegistryAccess() {
-		if (EffectiveSide.get().isClient())
+		if (EffectiveSide.get().isClient() && ServerLifecycleHooks.getCurrentServer() == null)
 			return ClientHelper.getClientRegistryAccess();
 		if (ServerLifecycleHooks.getCurrentServer() != null)
 			return ServerLifecycleHooks.getCurrentServer().registryAccess();
