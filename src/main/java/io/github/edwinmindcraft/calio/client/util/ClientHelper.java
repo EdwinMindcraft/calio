@@ -18,4 +18,11 @@ public class ClientHelper {
 		// Read https://github.com/EdwinMindcraft/calio/issues/4 for more information.
 		return access != null && access != instance.getConnection().registryAccess();
 	}
+
+	public static RegistryAccess getClientRegistryAccess() {
+		Minecraft instance = Minecraft.getInstance();
+		if (instance.level == null)
+			return null;
+		return instance.level.registryAccess();
+	}
 }
