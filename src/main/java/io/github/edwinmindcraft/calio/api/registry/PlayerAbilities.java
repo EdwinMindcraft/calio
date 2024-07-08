@@ -7,6 +7,7 @@ import io.github.edwinmindcraft.calio.common.ability.InstabuildAbility;
 import io.github.edwinmindcraft.calio.common.ability.InvulnerableAbility;
 import io.github.edwinmindcraft.calio.common.registry.CalioRegisters;
 import net.minecraft.core.Registry;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.function.Supplier;
 
@@ -20,5 +21,8 @@ public class PlayerAbilities {
     public static final Supplier<PlayerAbility> MAY_NOT_BUILD = CalioRegisters.PLAYER_ABILITIES.register("maynotbuild", InvulnerableAbility::new);
 
 	public static void register() {
+		CalioRegisters.PLAYER_ABILITIES.getEntries().forEach(holder ->
+				CalioRegisters.PLAYER_ABILITIES.addAlias(ResourceLocation.withDefaultNamespace(holder.getId().getPath()), holder.getId())
+		);
 	}
 }

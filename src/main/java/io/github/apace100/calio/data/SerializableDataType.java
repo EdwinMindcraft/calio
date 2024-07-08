@@ -155,7 +155,7 @@ public class SerializableDataType<T> implements Codec<T> {
                 id -> {
 
                     ResourceKey<T> registryKey = ResourceKey.create(registryRef, id);
-                    RegistryAccess dynamicRegistries = CalioAPI.getSidedRegistryAccess();
+                    RegistryAccess dynamicRegistries = CalioAPI.getRegistryAccess();
 
                     if (dynamicRegistries == null || exemptions.contains(registryKey)) {
                         return registryKey;
@@ -223,7 +223,7 @@ public class SerializableDataType<T> implements Codec<T> {
         }
 
         return ops.getByteBuffer(input).flatMap(x -> {
-            RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.copiedBuffer(x), CalioAPI.getSidedRegistryAccess(), ConnectionType.NEOFORGE);
+            RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.copiedBuffer(x), CalioAPI.getRegistryAccess(), ConnectionType.NEOFORGE);
             try {
                 Pair<T, T1> pair = Pair.of(this.receive.apply(buffer), ops.empty());
                 return DataResult.success(pair);
@@ -255,7 +255,7 @@ public class SerializableDataType<T> implements Codec<T> {
             }
         }
 
-        RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), CalioAPI.getSidedRegistryAccess(), ConnectionType.NEOFORGE);
+        RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), CalioAPI.getRegistryAccess(), ConnectionType.NEOFORGE);
         try {
             this.send.accept(buffer, input);
             return DataResult.success(ops.createByteList(buffer.nioBuffer()));
