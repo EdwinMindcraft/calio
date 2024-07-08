@@ -1,34 +1,36 @@
 package io.github.edwinmindcraft.calio.common.network.packet;
 
 import io.github.apace100.calio.registry.DataObjectRegistry;
+import io.github.edwinmindcraft.calio.api.CalioAPI;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.fml.DistExecutor;
-import net.minecraftforge.network.NetworkEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-import java.util.function.Supplier;
+public record S2CDataObjectRegistryPacket(ResourceLocation registry, FriendlyByteBuf buffer) implements CustomPacketPayload {
+	public static final ResourceLocation ID = CalioAPI.resource("data_object_registry");
+	public static final Type<S2CDataObjectRegistryPacket> TYPE = new Type<>(ID);
+	public static final StreamCodec<FriendlyByteBuf, S2CDataObjectRegistryPacket> STREAM_CODEC = StreamCodec.of(S2CDataObjectRegistryPacket::write, S2CDataObjectRegistryPacket::new);
 
-public record S2CDataObjectRegistryPacket(ResourceLocation registry, FriendlyByteBuf buffer) {
-	public static S2CDataObjectRegistryPacket decode(FriendlyByteBuf buf) {
-		return new S2CDataObjectRegistryPacket(buf.readResourceLocation(), buf);
+	public S2CDataObjectRegistryPacket(FriendlyByteBuf buf) {
+		this(buf.readResourceLocation(), buf);
 	}
 
-	public void encode(FriendlyByteBuf buf) {
-		buf.writeResourceLocation(this.registry());
-		buf.writeBytes(this.buffer());
+	public static void write(FriendlyByteBuf buf, S2CDataObjectRegistryPacket packet) {
+		buf.writeResourceLocation(packet.registry());
+		buf.writeBytes(packet.buffer());
 	}
 
-	@OnlyIn(Dist.CLIENT)
-	private void handleClient(Supplier<NetworkEvent.Context> ctx) {
+	public void handle(IPayloadContext ctx) {
 		Minecraft minecraftClient = Minecraft.getInstance();
 		DataObjectRegistry.getRegistry(this.registry()).receive(this.buffer(),
-				minecraftClient.hasSingleplayerServer() ? r -> {} : ctx.get()::enqueueWork);
+				minecraftClient.hasSingleplayerServer() ? r -> {} : Minecraft.getInstance()::execute);
 	}
 
-	public void handle(Supplier<NetworkEvent.Context> ctx) {
-		DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> this.handleClient(ctx));
+	@Override
+	public Type<? extends CustomPacketPayload> type() {
+		return TYPE;
 	}
 }

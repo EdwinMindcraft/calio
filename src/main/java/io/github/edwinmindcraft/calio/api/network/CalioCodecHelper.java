@@ -60,6 +60,10 @@ public class CalioCodecHelper {
 	public static final Codec<MutableDouble> MUTABLE_DOUBLE = DOUBLE.xmap(MutableDouble::new, MutableDouble::toDouble);
 	public static final Codec<MutableFloat> MUTABLE_FLOAT = FLOAT.xmap(MutableFloat::new, MutableFloat::toFloat);
 
+	public static <T> MapCodec<Holder<T>> defaultedCodec() {
+
+	}
+
 	/**
 	 * Creates a codec of a registry key, used for dynamic registries (Biomes, Dimensions...)
 	 *
@@ -178,7 +182,7 @@ public class CalioCodecHelper {
 	}
 
 	public static <T> Codec<Holder<T>> holderRef(ResourceKey<Registry<T>> key, Codec<ResourceLocation> reference) {
-		Supplier<Registry<T>> supplier = () -> CalioAPI.getDynamicRegistries().get(key);
+		Supplier<Registry<T>> supplier = () -> CalioAPI.getRegistryAccess().registryOrThrow(key);
 		return holderRef(supplier, key, reference);
 	}
 
@@ -197,32 +201,9 @@ public class CalioCodecHelper {
 	}
 
 	public static <T> CodecSet<T> forDynamicRegistry(ResourceKey<Registry<T>> key, Codec<ResourceLocation> reference, Codec<T> direct) {
-		Supplier<Registry<T>> supplier = () -> CalioAPI.getDynamicRegistries().get(key);
+		Supplier<Registry<T>> supplier = () -> CalioAPI.getRegistryAccess().registryOrThrow(key);
 		return codecSet(supplier, key, reference, direct);
 	}
-
-	public static final Codec<Component> COMPONENT_CODEC = new IContextAwareCodec<>() {
-		@Override
-		public JsonElement asJson(Component input) {
-			return Component.Serializer.toJsonTree(input);
-		}
-
-		@Override
-		@Nullable
-		public Component fromJson(JsonElement input) {
-			return Component.Serializer.fromJson(input);
-		}
-
-		@Override
-		public void encode(Component input, FriendlyByteBuf buf) {
-			buf.writeComponent(input);
-		}
-
-		@Override
-		public Component decode(FriendlyByteBuf buf) {
-			return buf.readComponent();
-		}
-	};
 
 	public static MapCodec<Vec3> vec3d(String xName, String yName, String zName) {
 		return RecordCodecBuilder.mapCodec(instance -> instance.group(

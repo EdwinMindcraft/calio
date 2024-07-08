@@ -6,5 +6,5 @@ import org.jetbrains.annotations.NotNull;
 
 public interface DynamicEntryValidator<T> {
 	@NotNull
-	DataResult<T> validate(@NotNull ResourceLocation location, @NotNull T input, @NotNull ICalioDynamicRegistryManager manager);
+	DataResult<T> validate(@NotNull ResourceLocation location, @NotNull T input, @NotNull CalioDynamicRegistryManager manager);
 }

@@ -1,6 +1,5 @@
 package io.github.edwinmindcraft.calio.common.util;
 
-import io.github.apace100.calio.NbtConstants;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -15,7 +14,7 @@ public class CoreHelper {
 
 	public static void removeNonItalicFlag(ItemStack stack) {
 		CompoundTag display = stack.getTagElement("display");
-		if (display != null && display.contains(NbtConstants.NON_ITALIC_NAME))
-			display.remove(NbtConstants.NON_ITALIC_NAME);
+		if (display != null && display.contains(ComponentConstants.NON_ITALIC_NAME))
+			display.remove(ComponentConstants.NON_ITALIC_NAME);
 	}
 }

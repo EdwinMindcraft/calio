@@ -3,38 +3,30 @@ package io.github.edwinmindcraft.calio.common.ability;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import io.github.edwinmindcraft.calio.api.CalioAPI;
+import io.github.edwinmindcraft.calio.api.ability.AbilityHolder;
 import io.github.edwinmindcraft.calio.api.ability.PlayerAbility;
-import io.github.edwinmindcraft.calio.api.registry.PlayerAbilities;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.PlayerInfo;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.StringTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ICapabilitySerializable;
-import net.minecraftforge.common.util.LazyOptional;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class AbilityHolder implements ICapabilitySerializable<Tag>, io.github.edwinmindcraft.calio.api.ability.AbilityHolder {
+public class AbilityHolderImpl implements AbilityHolder {
 	public static final ResourceLocation ID = CalioAPI.resource("ability_holder");
 
 	private final Multimap<PlayerAbility, ResourceLocation> abilities;
 	private final Set<PlayerAbility> toTick;
 	private final Player player;
 
-	public AbilityHolder(Player player) {
+	public AbilityHolderImpl(Player player) {
 		this.player = player;
 		this.abilities = Multimaps.newMultimap(new ConcurrentHashMap<>(), () -> Collections.newSetFromMap(new ConcurrentHashMap<>()));
 		this.toTick = Collections.newSetFromMap(new ConcurrentHashMap<>());
@@ -96,40 +88,8 @@ public class AbilityHolder implements ICapabilitySerializable<Tag>, io.github.ed
         }
     }
 
-	private final LazyOptional<io.github.edwinmindcraft.calio.api.ability.AbilityHolder> thisOptional = LazyOptional.of(() -> this);
-
-	@NotNull
-	@Override
-	public <T> LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
-		return CalioAPI.ABILITY_HOLDER.orEmpty(cap, this.thisOptional);
-	}
-
-	@Override
-	public Tag serializeNBT() {
-		CompoundTag tag = new CompoundTag();
-		for (PlayerAbility key : this.abilities.keySet()) {
-			ListTag ls = new ListTag();
-			for (ResourceLocation resourceLocation : this.abilities.get(key)) {
-				ls.add(StringTag.valueOf(resourceLocation.toString()));
-			}
-			tag.put(Objects.requireNonNull(PlayerAbilities.REGISTRY.get().getKey(key)).toString(), ls);
-		}
-		return tag;
-	}
-
-	@Override
-	public void deserializeNBT(Tag nbt) {
-		CompoundTag tag = (CompoundTag) nbt;
-		for (String key : tag.getAllKeys()) {
-			PlayerAbility value = PlayerAbilities.REGISTRY.get().getValue(ResourceLocation.tryParse(key));
-			if (value != null) {
-				ListTag list = tag.getList(key, Tag.TAG_STRING);
-				for (Tag t : list) {
-					ResourceLocation resourceLocation = ResourceLocation.tryParse(t.getAsString());
-					if (resourceLocation != null)
-						this.grant(value, resourceLocation);
-				}
-			}
-		}
+	@Nullable
+	public static AbilityHolder get(Entity entity) {
+		return CalioAPI.ABILITY_HOLDER.getCapability(entity, null);
 	}
 }

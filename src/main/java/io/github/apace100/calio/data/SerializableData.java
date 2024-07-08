@@ -5,9 +5,12 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.*;
+import io.github.apace100.calio.Calio;
+import io.github.edwinmindcraft.calio.api.CalioAPI;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import org.apache.commons.lang3.Validate;
@@ -47,11 +50,11 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 	}
 
 	public void write(FriendlyByteBuf buffer, Instance instance) {
-		buffer.writeWithCodec(NbtOps.INSTANCE, this.codec(), instance);
+		ByteBufCodecs.fromCodec(this.codec()).encode(buffer, instance);
 	}
 
 	public Instance read(FriendlyByteBuf buffer) {
-		return buffer.readWithCodec(NbtOps.INSTANCE, this.codec(), NbtAccounter.unlimitedHeap());
+		return ByteBufCodecs.fromCodec(this.codec()).decode(buffer);
 	}
 
 	public Instance read(JsonObject jsonObject) {
@@ -74,6 +77,21 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 			}
 		});
 		return instance;
+	}
+
+	public <T> JsonObject write(Instance instance) {
+
+		JsonObject jsonObject = new JsonObject();
+		dataFields.forEach((name, field) -> instance.ifPresent(name, o -> {
+			try {
+				jsonObject.add(name, field.dataType.writeUnsafely(o));
+			} catch (Exception e) {
+				CalioAPI.LOGGER.error("There was a problem serializing field {} with data type {} to JSON (skipping): {}", name, o.getClass(), e.getMessage());
+			}
+		}));
+
+		return jsonObject;
+
 	}
 
 	public SerializableData copy() {

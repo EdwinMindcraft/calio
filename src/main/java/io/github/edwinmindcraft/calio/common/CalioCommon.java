@@ -1,33 +1,18 @@
 package io.github.edwinmindcraft.calio.common;
 
-import io.github.edwinmindcraft.calio.api.ability.AbilityHolder;
 import io.github.edwinmindcraft.calio.api.registry.PlayerAbilities;
-import io.github.edwinmindcraft.calio.common.network.CalioNetwork;
 import io.github.edwinmindcraft.calio.common.registry.CalioRegisters;
-import net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.fml.ModLoadingContext;
-import net.minecraftforge.fml.config.ModConfig;
-import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import io.github.edwinmindcraft.calio.common.util.ComponentConstants;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModLoadingContext;
+import net.neoforged.fml.config.ModConfig;
 
 public class CalioCommon {
-	public static void initialize() {
-		IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
-		bus.addListener(CalioCommon::registerCapabilities);
-		bus.addListener(CalioCommon::commonSetup);
+	public static void initialize(IEventBus bus) {
 		CalioRegisters.register(bus);
 		PlayerAbilities.register();
+		ComponentConstants.register();
 
-		ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, CalioConfig.COMMON_SPECS);
-	}
-
-
-	private static void registerCapabilities(RegisterCapabilitiesEvent event) {
-		event.register(AbilityHolder.class);
-	}
-
-	public static void commonSetup(FMLCommonSetupEvent event) {
-		CalioNetwork.register();
+		ModLoadingContext.get().getActiveContainer().registerConfig(ModConfig.Type.COMMON, CalioConfig.COMMON_SPECS);
 	}
 }

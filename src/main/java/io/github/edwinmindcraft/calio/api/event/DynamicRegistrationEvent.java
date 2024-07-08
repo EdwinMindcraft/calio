@@ -1,21 +1,21 @@
 package io.github.edwinmindcraft.calio.api.event;
 
+import net.minecraft.core.Registry;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.eventbus.api.Cancelable;
-import net.minecraftforge.eventbus.api.GenericEvent;
+import net.neoforged.bus.api.Event;
+import net.neoforged.bus.api.ICancellableEvent;
 import org.apache.commons.lang3.Validate;
 import org.jetbrains.annotations.NotNull;
 
-@Cancelable
-public class DynamicRegistrationEvent<T> extends GenericEvent<T> {
-	private final ResourceLocation registryName;
+public class DynamicRegistrationEvent<T> extends Event implements ICancellableEvent {
+	private final ResourceKey<Registry<T>> registryKey;
 	private final T original;
 	private T newEntry;
 	private String cancellationReason = null;
 
-	public DynamicRegistrationEvent(Class<T> type, ResourceLocation path, T original) {
-		super(type);
-		this.registryName = path;
+	public DynamicRegistrationEvent(ResourceKey<Registry<T>> registryKey, T original) {
+		this.registryKey = registryKey;
 		this.original = original;
 		this.newEntry = original;
 	}
@@ -49,6 +49,6 @@ public class DynamicRegistrationEvent<T> extends GenericEvent<T> {
 	}
 
 	public ResourceLocation getRegistryName() {
-		return this.registryName;
+		return this.registryKey.location();
 	}
 }

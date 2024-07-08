@@ -3,7 +3,7 @@ plugins {
     id 'eclipse'
     id 'idea'
     id 'maven-publish'
-    id 'net.neoforged.gradle.userdev' version '[7.0,)'
+    id 'net.neoforged.moddev'
 }
 
 version = mod_version
@@ -18,49 +18,36 @@ base {
 }
 
 // Mojang ships Java 17 to end users in 1.18+, so your mod should target Java 17.
-java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+java.toolchain.languageVersion = JavaLanguageVersion.of(java_version)
 
-minecraft {
-    accessTransformers {
-        file project.file('src/main/resources/META-INF/accesstransformer.cfg')
-    }
-}
-
-//minecraft.accessTransformers.file rootProject.file('src/main/resources/META-INF/accesstransformer.cfg')
-//minecraft.accessTransformers.entry public net.minecraft.client.Minecraft textureManager # textureManager
-
-// Default run configurations.
-// These can be tweaked, removed, or duplicated as needed.
-runs {
-    configureEach {
-        systemProperty 'forge.logging.markers', 'REGISTRIES'
-        systemProperty 'forge.logging.console.level', 'debug'
-
-        modSource project.sourceSets.main
+neoForge {
+    version = neo_version
+    parchment {
+        minecraftVersion = minecraft_version
+        mappingsVersion = parchment_version
     }
 
-    client {
-        systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
-    }
-
-    server {
-        systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
-        programArgument '--nogui'
-    }
-
-    gameTestServer {
-        systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
-    }
-
-    data {
-        programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
-    }
+    accessTransformers.add("src/main/resources/${mod_id}.cfg")
+    validateAccessTransformers = true
 }
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
+repositories {
+    maven {
+        name = "QuiltMC"
+        url = "https://maven.quiltmc.org/repository/release"
+    }
+}
+
 dependencies {
-    implementation "net.neoforged:neoforge:${neo_version}"
+    // QuiltMC's GSON parser
+    jarJar("org.quiltmc.parsers:json:0.2.1") {
+        transitive false
+    }
+    jarJar("org.quiltmc.parsers:gson:0.2.1") {
+        transitive false
+    }
 }
 
 tasks.withType(ProcessResources).configureEach {
@@ -75,19 +62,6 @@ tasks.withType(ProcessResources).configureEach {
 
     filesMatching(['META-INF/mods.toml']) {
         expand replaceProperties + [project: project]
-    }
-}
-
-publishing {
-    publications {
-        register('mavenJava', MavenPublication) {
-            from components.java
-        }
-    }
-    repositories {
-        maven {
-            url "file://${project.projectDir}/repo"
-        }
     }
 }
 
@@ -106,8 +80,8 @@ publishing {
     }
     repositories {
         maven {
-            name = "merchantpug"
-            url = "https://maven.merchantpug.net/releases"
+            name = "ladysnake"
+            url = "https://maven.ladysnake.org/releases"
             credentials {
                 username System.getenv('MAVEN_USERNAME')
                 password System.getenv('MAVEN_PASSWORD')

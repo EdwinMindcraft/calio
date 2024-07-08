@@ -3,16 +3,16 @@ package io.github.apace100.calio;
 import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.common.CalioCommon;
 import io.github.edwinmindcraft.calio.common.CalioConfig;
-import net.minecraft.advancements.CriteriaTriggers;
+import io.github.edwinmindcraft.calio.common.util.ComponentConstants;
 import net.minecraft.core.Registry;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.TagKey;
+import net.minecraft.util.Unit;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.fml.ModLoadingContext;
-import net.minecraftforge.fml.common.Mod;
-
-import java.util.Objects;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModLoadingContext;
+import net.neoforged.fml.common.Mod;
 
 @Mod(CalioAPI.MODID)
 public class Calio {
@@ -27,28 +27,28 @@ public class Calio {
 
 	//static TagManagerGetter tagManagerGetter;
 
-	public Calio() {
+	public Calio(IEventBus bus) {
 		CalioAPI.LOGGER.info("Calio {} initializing...", ModLoadingContext.get().getActiveContainer().getModInfo().getVersion());
-		CalioCommon.initialize();
-		CriteriaTriggers.register(CodeTriggerCriterion.INSTANCE);
+		CalioCommon.initialize(bus);
+		// FIXME: Register Criteria Triggers through DeferredRegister.
+		//CriteriaTriggers.register(CodeTriggerCriterion.INSTANCE);
 		//tagManagerGetter = DistExecutor.safeRunForDist(() -> ClientTagManagerGetter::new, () -> ServerTagManagerGetter::new);
 	}
 
 	public static boolean hasNonItalicName(ItemStack stack) {
-		if (stack.hasTag()) {
-			CompoundTag display = stack.getTagElement("display");
-			return display != null && display.getBoolean(NbtConstants.NON_ITALIC_NAME);
-		}
-		return false;
+		return stack.has(ComponentConstants.NON_ITALIC_NAME.get());
 	}
 
 	public static void setNameNonItalic(ItemStack stack) {
-		if (stack != null)
-			stack.getOrCreateTagElement("display").putBoolean(NbtConstants.NON_ITALIC_NAME, true);
+		if (stack != null) {
+			DataComponentPatch.Builder builder = DataComponentPatch.builder();
+			builder.set(ComponentConstants.NON_ITALIC_NAME.get(), Unit.INSTANCE);
+			stack.applyComponents(builder.build());
+		}
 	}
 
 	public static boolean areEntityAttributesAdditional(ItemStack stack) {
-		return stack.hasTag() && Objects.requireNonNull(stack.getTag()).contains(NbtConstants.ADDITIONAL_ATTRIBUTES) && stack.getTag().getBoolean(NbtConstants.ADDITIONAL_ATTRIBUTES);
+		return stack.has(ComponentConstants.ADDITIONAL_ATTRIBUTES);
 	}
 
 	/**
@@ -60,10 +60,13 @@ public class Calio {
 	 */
 	public static void setEntityAttributesAdditional(ItemStack stack, boolean additional) {
 		if (stack != null) {
-			if (additional)
-				stack.getOrCreateTag().putBoolean(NbtConstants.ADDITIONAL_ATTRIBUTES, true);
-			else if (stack.hasTag())
-				Objects.requireNonNull(stack.getTag()).remove(NbtConstants.ADDITIONAL_ATTRIBUTES);
+			if (additional) {
+				DataComponentPatch.Builder builder = DataComponentPatch.builder();
+				builder.set(ComponentConstants.ADDITIONAL_ATTRIBUTES.get(), Unit.INSTANCE);
+				stack.applyComponents(builder.build());
+			} else if (stack.has(ComponentConstants.ADDITIONAL_ATTRIBUTES)) {
+				stack.remove(ComponentConstants.ADDITIONAL_ATTRIBUTES);
+			}
 		}
 	}
 

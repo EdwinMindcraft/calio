@@ -18,11 +18,15 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.*;
 
-/***
- * Like JsonDataLoader, but provides a list of elements with an identifier, each element being loaded by a different
- * data pack. This allows overriding and merging several data files into one, similar to how tags work. There is no
- * guarantee on the order of the resulting list, so make sure to include some kind of "priority" system.
+/**
+ *  <p>Like {@link net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener}, except it provides a list of {@link JsonElement JsonElements} associated
+ *  with an {@link ResourceLocation}, where each element is loaded by different resource packs. This allows for overriding and merging several
+ *  data files into one, similar to how tags work. There is no guarantee on the order of the resulting list, so make sure to implement
+ *  some kind of "priority" system.</p>
+ *
+ *  <p>This is <b>deprecated</b> in favor of using {@link IdentifiableMultiJsonDataLoader}.</p>
  */
+@Deprecated
 public abstract class MultiJsonDataLoader extends SimplePreparableReloadListener<Map<ResourceLocation, List<JsonElement>>> {
 	private static final Logger LOGGER = LogManager.getLogger();
 	private static final int FILE_SUFFIX_LENGTH = ".json".length();

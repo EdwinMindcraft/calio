@@ -1,101 +1,73 @@
 package io.github.edwinmindcraft.calio.common;
 
 import io.github.apace100.calio.Calio;
-import io.github.apace100.calio.registry.DataObjectRegistry;
-import io.github.apace100.calio.resource.OrderedResourceListenerManager;
 import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.api.ability.AbilityHolder;
-import io.github.edwinmindcraft.calio.common.registry.CalioDynamicRegistryManager;
+import io.github.edwinmindcraft.calio.api.registry.PlayerAbilities;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.server.packs.PackType;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.MapItem;
-import net.minecraftforge.event.*;
-import net.minecraftforge.event.entity.player.ItemTooltipEvent;
-import net.minecraftforge.event.server.ServerStoppedEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.network.PacketDistributor;
+import net.neoforged.bus.api.EventPriority;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.ItemAttributeModifierEvent;
+import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
+import net.neoforged.neoforge.event.tick.EntityTickEvent;
+import net.neoforged.neoforge.registries.NewRegistryEvent;
 
 import java.util.List;
-import java.util.Objects;
 
-@Mod.EventBusSubscriber(modid = CalioAPI.MODID)
+@EventBusSubscriber(modid = CalioAPI.MODID)
 public class CalioEventHandler {
 	@SubscribeEvent
-	public static void onDatapack(OnDatapackSyncEvent event) {
-		PacketDistributor.PacketTarget target = event.getPlayer() == null ? PacketDistributor.ALL.noArg() : PacketDistributor.PLAYER.with(event::getPlayer);
-		CalioDynamicRegistryManager.getInstance(event.getPlayerList().getServer().registryAccess()).synchronize(target);
-		if (event.getPlayer() != null)
-			DataObjectRegistry.performAutoSync(event.getPlayer());
-	}
-
-	@SubscribeEvent
-	public static void onServerReload(AddReloadListenerEvent event) {
-		CalioDynamicRegistryManager instance = CalioDynamicRegistryManager.getInstance(event.getServerResources().tagManager.registryAccess);
-		event.addListener(instance);
-		//OrderedResourceListeners.orderedList().forEach(event::addListener);
-		OrderedResourceListenerManager.getInstance().addResources(PackType.SERVER_DATA, event::addListener);
-	}
-
-	@SubscribeEvent
-	public static void onServerStopped(ServerStoppedEvent event) {
-		CalioAPI.LOGGER.info("Removing Dynamic Registries for: " + event.getServer());
-		CalioDynamicRegistryManager.removeServerInstance();
-	}
-
-	@SubscribeEvent
-	public static void onCapability(AttachCapabilitiesEvent<Entity> event) {
-		if (event.getObject() instanceof Player player)
-			event.addCapability(io.github.edwinmindcraft.calio.common.ability.AbilityHolder.ID, new io.github.edwinmindcraft.calio.common.ability.AbilityHolder(player));
+	public static void createNewRegistries(NewRegistryEvent event) {
+		event.register(PlayerAbilities.REGISTRY);
 	}
 
 	@SubscribeEvent(priority = EventPriority.HIGH)
-	public static void playerFirstTick(TickEvent.PlayerTickEvent event) {
-		if (event.phase == TickEvent.Phase.START) {
+	public static void playerFirstTick(EntityTickEvent.Pre event) {
+		if (event.getEntity() instanceof Player player) {
 			//Trigger removals on HIGH, as most mods will have their modifications on NORMAL
-			if (CalioAPI.getAbilityHolder(event.player).map(AbilityHolder::applyRemovals).orElse(false))
-				event.player.onUpdateAbilities();
+			if (CalioAPI.getAbilityHolder(player) != null && CalioAPI.getAbilityHolder(player).applyRemovals())
+				player.onUpdateAbilities();
 		}
 	}
 
 
 	@SubscribeEvent(priority = EventPriority.LOW)
-	public static void playerTick(TickEvent.PlayerTickEvent event) {
-		if (event.phase == TickEvent.Phase.START) {
-			//Trigger additions on LOW, as most mods will have their modifications on NORMAL
-			//This also allows mods that would control everything to have LOWEST to place their overrides.
-			if (CalioAPI.getAbilityHolder(event.player).map(AbilityHolder::applyAdditions).orElse(false))
-				event.player.onUpdateAbilities();
+	public static void playerTick(EntityTickEvent.Pre event) {
+		//Trigger additions on LOW, as most mods will have their modifications on NORMAL
+		//This also allows mods that would control everything to have LOWEST to place their overrides.
+		if (event.getEntity() instanceof Player player) {
+			AbilityHolder abilities = CalioAPI.getAbilityHolder(player);
+			if (abilities != null && abilities.applyAdditions())
+				player.onUpdateAbilities();
 		}
 	}
 
 	@SubscribeEvent
 	public static void updateAttributes(ItemAttributeModifierEvent event) {
 		ItemStack stack = event.getItemStack();
-		if (Calio.areEntityAttributesAdditional(stack) && stack.hasTag() && Objects.requireNonNull(stack.getTag()).contains("AttributeModifiers", 9))
-			event.getModifiers().putAll(stack.getItem().getAttributeModifiers(event.getSlotType(), stack));
+		if (Calio.areEntityAttributesAdditional(stack) && stack.getComponentsPatch().get(DataComponents.ATTRIBUTE_MODIFIERS) != null && stack.getComponentsPatch().get(DataComponents.ATTRIBUTE_MODIFIERS).isPresent() && stack.getItem().components().has(DataComponents.ATTRIBUTE_MODIFIERS))
+			event.getModifiers().addAll(stack.getItem().components().get(DataComponents.ATTRIBUTE_MODIFIERS).modifiers());
 	}
 
 	@SubscribeEvent
 	public static void onTooltip(ItemTooltipEvent event) {
 		List<Component> toolTip = event.getToolTip();
 		ItemStack itemStack = event.getItemStack();
-		if (toolTip.isEmpty() || !Calio.hasNonItalicName(itemStack) || !itemStack.hasCustomHoverName())
+		if (toolTip.isEmpty() || !Calio.hasNonItalicName(itemStack) || !itemStack.has(DataComponents.CUSTOM_NAME))
 			return;
 		Component name = toolTip.get(0);
 		if (name instanceof MutableComponent mName)
 			mName.withStyle(style -> style.withItalic(false));
-		if (!event.getFlags().isAdvanced() && itemStack.is(Items.FILLED_MAP)) {
-			Integer integer = MapItem.getMapId(itemStack);
-			if (integer != null)
-				toolTip.add(1, (Component.literal("#" + integer)).withStyle(ChatFormatting.GRAY));
+		if (!event.getFlags().isAdvanced() && itemStack.is(Items.FILLED_MAP) && itemStack.has(DataComponents.MAP_ID)) {
+			int integer = itemStack.get(DataComponents.MAP_ID).id();
+            toolTip.add(1, (Component.literal("#" + integer)).withStyle(ChatFormatting.GRAY));
 		}
 	}
 }

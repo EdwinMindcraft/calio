@@ -5,26 +5,23 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.Lifecycle;
 import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.api.registry.DynamicRegistryListener;
-import io.github.edwinmindcraft.calio.common.network.CalioNetwork;
-import io.github.edwinmindcraft.calio.common.registry.CalioDynamicRegistryManager;
+import io.github.edwinmindcraft.calio.common.registry.CalioDynamicRegistryManagerImpl;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.Holder;
 import net.minecraft.core.MappedRegistry;
 import net.minecraft.core.Registry;
 import net.minecraft.core.WritableRegistry;
+import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
-import net.minecraftforge.network.NetworkEvent;
-import net.minecraftforge.server.ServerLifecycleHooks;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.OptionalInt;
 import java.util.function.IntSupplier;
-import java.util.function.Supplier;
 
 public abstract sealed class S2CDynamicRegistryPacket<T> permits S2CDynamicRegistryPacket.Login, S2CDynamicRegistryPacket.Play {
 	private final ResourceKey<Registry<T>> key;
@@ -54,7 +51,7 @@ public abstract sealed class S2CDynamicRegistryPacket<T> permits S2CDynamicRegis
 		}
 	}
 
-	private static <T, V extends S2CDynamicRegistryPacket<T>> List<V> splitPackets(ResourceKey<Registry<T>> key, CalioDynamicRegistryManager drm, Builder<T, V> builder, int size) {
+	private static <T, V extends S2CDynamicRegistryPacket<T>> List<V> splitPackets(ResourceKey<Registry<T>> key, CalioDynamicRegistryManagerImpl drm, Builder<T, V> builder, int size) {
 		WritableRegistry<T> registry = drm.get(key);
 		Codec<T> codec = drm.getCodec(key);
 		FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
@@ -83,7 +80,7 @@ public abstract sealed class S2CDynamicRegistryPacket<T> permits S2CDynamicRegis
 	}
 
 	private static <T, V extends S2CDynamicRegistryPacket<T>> V decodeWithBuilder(FriendlyByteBuf buffer, Builder<T, V> decoder) {
-		CalioDynamicRegistryManager cdrm = CalioDynamicRegistryManager.getInstance(null);
+		CalioDynamicRegistryManagerImpl cdrm = CalioDynamicRegistryManagerImpl.getInstance(null);
 		ResourceKey<Registry<T>> registryKey = ResourceKey.createRegistryKey(buffer.readResourceLocation());
 		MappedRegistry<T> registry = new MappedRegistry<>(registryKey, Lifecycle.experimental(), false);
 		Codec<T> codec = cdrm.getCodec(registryKey);
@@ -92,7 +89,7 @@ public abstract sealed class S2CDynamicRegistryPacket<T> permits S2CDynamicRegis
 		for (int i = 0; i < count; i++) {
 			int index = buffer.readInt();
 			ResourceKey<T> key = ResourceKey.create(registryKey, buffer.readResourceLocation());
-			T value = buffer.readWithCodec(NbtOps.INSTANCE, codec);
+			T value = buffer.readWithCodec(NbtOps.INSTANCE, codec, NbtAccounter.unlimitedHeap());
 			if (value instanceof DynamicRegistryListener drl)
 				drl.whenNamed(key.location());
 			registry.registerMapping(index, key, value, Lifecycle.experimental());
@@ -102,7 +99,7 @@ public abstract sealed class S2CDynamicRegistryPacket<T> permits S2CDynamicRegis
 
 	public void handle(Supplier<NetworkEvent.Context> handler) {
 		handler.get().enqueueWork(() -> {
-			CalioDynamicRegistryManager instance = CalioDynamicRegistryManager.getInstance(null);
+			CalioDynamicRegistryManagerImpl instance = CalioDynamicRegistryManagerImpl.getInstance(null);
 			synchronized (instance.getLock(this.key)) {
 				WritableRegistry<T> target = this.start == 0 ? instance.reset(this.key) : instance.get(this.key);
 				for (Map.Entry<ResourceKey<T>, T> entry : this.registry.entrySet())
@@ -110,8 +107,6 @@ public abstract sealed class S2CDynamicRegistryPacket<T> permits S2CDynamicRegis
 				instance.dump();
 			}
 		});
-		if (this instanceof S2CDynamicRegistryPacket.Login<T>)
-			CalioNetwork.CHANNEL.reply(new C2SAcknowledgePacket(), handler.get());
 		handler.get().setPacketHandled(true);
 	}
 
@@ -144,14 +139,14 @@ public abstract sealed class S2CDynamicRegistryPacket<T> permits S2CDynamicRegis
 			return S2CDynamicRegistryPacket.<T, Login<T>>decodeWithBuilder(buf, Login<T>::new);
 		}
 
-		private static <T> List<Login<T>> split(ResourceKey<Registry<?>> key, CalioDynamicRegistryManager drm, int size) {
+		private static <T> List<Login<T>> split(ResourceKey<Registry<?>> key, CalioDynamicRegistryManagerImpl drm, int size) {
 			return S2CDynamicRegistryPacket.splitPackets((ResourceKey<Registry<T>>) (ResourceKey) key, drm, Login<T>::new, size);
 		}
 
 		public static List<Pair<String, S2CDynamicRegistryPacket.Login<?>>> create(boolean isLocal) {
 			try {
 				ImmutableList.Builder<Pair<String, S2CDynamicRegistryPacket.Login<?>>> builder = ImmutableList.builder();
-				CalioDynamicRegistryManager drm = (CalioDynamicRegistryManager) CalioAPI.getDynamicRegistries(ServerLifecycleHooks.getCurrentServer());
+				CalioDynamicRegistryManagerImpl drm = (CalioDynamicRegistryManagerImpl) CalioAPI.getDynamicRegistries(ServerLifecycleHooks.getCurrentServer());
 				for (ResourceKey<Registry<?>> registryName : drm.getRegistryNames()) {
 					List<Login<Object>> splitPackets = split(registryName, drm, 1048576);
 					for (int i = 0; i < splitPackets.size(); i++) {
@@ -175,11 +170,11 @@ public abstract sealed class S2CDynamicRegistryPacket<T> permits S2CDynamicRegis
 			return S2CDynamicRegistryPacket.<T, Play<T>>decodeWithBuilder(buf, Play<T>::new);
 		}
 
-		private static <T> List<Play<T>> split(ResourceKey<Registry<?>> key, CalioDynamicRegistryManager drm, int size) {
+		private static <T> List<Play<T>> split(ResourceKey<Registry<?>> key, CalioDynamicRegistryManagerImpl drm, int size) {
 			return S2CDynamicRegistryPacket.splitPackets((ResourceKey<Registry<T>>) (ResourceKey) key, drm, Play<T>::new, size);
 		}
 
-		public static List<S2CDynamicRegistryPacket.Play<?>> create(CalioDynamicRegistryManager manager) {
+		public static List<S2CDynamicRegistryPacket.Play<?>> create(CalioDynamicRegistryManagerImpl manager) {
 			try {
 				ImmutableList.Builder<S2CDynamicRegistryPacket.Play<?>> builder = ImmutableList.builder();
 				for (ResourceKey<Registry<?>> registryName : manager.getRegistryNames()) {

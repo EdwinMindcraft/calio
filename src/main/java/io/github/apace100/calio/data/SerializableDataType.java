@@ -18,24 +18,21 @@ import io.github.apace100.calio.util.TagLike;
 import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.api.network.CalioCodecHelper;
 import io.github.edwinmindcraft.calio.api.network.EnumValueCodec;
-import io.netty.buffer.ByteBufInputStream;
-import io.netty.buffer.ByteBufOutputStream;
 import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.EncoderException;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
-import net.minecraft.nbt.NbtAccounter;
-import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
+import net.neoforged.neoforge.network.connection.ConnectionType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -48,21 +45,14 @@ public class SerializableDataType<T> implements Codec<T> {
 
     private final Class<T> dataClass;
     private final Codec<T> codec;
-    private final BiConsumer<FriendlyByteBuf, T> send;
-    private final Function<FriendlyByteBuf, T> receive;
+    private final BiConsumer<RegistryFriendlyByteBuf, T> send;
+    private final Function<RegistryFriendlyByteBuf, T> receive;
     private final Function<JsonElement, T> read;
     private final Function<T, JsonElement> write;
 
     public SerializableDataType(Class<T> dataClass,
-                                BiConsumer<FriendlyByteBuf, T> send,
-                                Function<FriendlyByteBuf, T> receive,
-                                Function<JsonElement, T> read) {
-        this(dataClass, send, receive, read, null);
-    }
-
-    public SerializableDataType(Class<T> dataClass,
-                                BiConsumer<FriendlyByteBuf, T> send,
-                                Function<FriendlyByteBuf, T> receive,
+                                BiConsumer<RegistryFriendlyByteBuf, T> send,
+                                Function<RegistryFriendlyByteBuf, T> receive,
                                 Function<JsonElement, T> read,
                                 Function<T, JsonElement> write) {
         this.dataClass = dataClass;
@@ -73,16 +63,18 @@ public class SerializableDataType<T> implements Codec<T> {
         this.codec = null;
     }
 
+    // FORGE: Codec
     public SerializableDataType(Class<T> dataClass, Codec<T> codec) {
+        this(dataClass, codec, ByteBufCodecs.fromCodec(codec).cast());
+    }
+
+    public SerializableDataType(Class<T> dataClass, Codec<T> codec, StreamCodec<RegistryFriendlyByteBuf, T> streamCodec) {
         this.dataClass = dataClass;
         this.codec = codec;
-        this.send = (buf, t) -> writeWithCodec(buf, this.codec, t);
-        this.receive = buf -> readWithCodec(buf, codec);
-        this.read = jsonElement -> codec.decode(JsonOps.INSTANCE, jsonElement).map(Pair::getFirst).getOrThrow(false, s -> {
-            throw new JsonParseException(s);
-        });
-        this.write = t -> codec.encodeStart(JsonOps.INSTANCE, t).getOrThrow(false, s -> {
-        });
+        this.send = streamCodec::encode;
+        this.receive = streamCodec::decode;
+        this.read = jsonElement -> codec.decode(JsonOps.INSTANCE, jsonElement).map(Pair::getFirst).getOrThrow();
+        this.write = t -> codec.encodeStart(JsonOps.INSTANCE, t).getOrThrow();
     }
 
     public static <T> boolean isDataContext(DynamicOps<T> ops) {
@@ -137,11 +129,45 @@ public class SerializableDataType<T> implements Codec<T> {
                 id -> TagKey.create(registryKey, id));
     }
 
-    public static <T> SerializableDataType<ResourceKey<T>> registryKey(ResourceKey<Registry<T>> registryKeyRegistry) {
-        return SerializableDataType.wrap(
+
+    public static <T> SerializableDataType<Holder<T>> registryEntry(Registry<T> registry) {
+        return wrap(
+                ClassUtil.castClass(Holder.class),
+                SerializableDataTypes.IDENTIFIER,
+                registryEntry -> registryEntry.unwrapKey()
+                        .orElseThrow(() -> new IllegalArgumentException("Registry entry \"" + registryEntry + "\" is not registered in registry \"" + registry.key().location() + "\""))
+                        .location(),
+                id -> registry
+                        .getHolder(id)
+                        .orElseThrow(() -> new IllegalArgumentException("Type \"" + id + "\" is not registered in registry \"" + registry.key().location() + "\""))
+        );
+    }
+
+    public static <T> SerializableDataType<ResourceKey<T>> registryKey(ResourceKey<Registry<T>> registryRef) {
+        return registryKey(registryRef, List.of());
+    }
+
+    public static <T> SerializableDataType<ResourceKey<T>> registryKey(ResourceKey<Registry<T>> registryRef, Collection<ResourceKey<T>> exemptions) {
+        return wrap(
                 ClassUtil.castClass(ResourceKey.class),
                 SerializableDataTypes.IDENTIFIER,
-                ResourceKey::location, identifier -> ResourceKey.create(registryKeyRegistry, identifier)
+                ResourceKey::location,
+                id -> {
+
+                    ResourceKey<T> registryKey = ResourceKey.create(registryRef, id);
+                    RegistryAccess dynamicRegistries = CalioAPI.getSidedRegistryAccess();
+
+                    if (dynamicRegistries == null || exemptions.contains(registryKey)) {
+                        return registryKey;
+                    }
+
+                    if (!dynamicRegistries.registryOrThrow(registryRef).containsKey(registryKey)) {
+                        throw new IllegalArgumentException("Type \"" + id + "\" is not registered in registry \"" + registryRef.location() + "\"");
+                    }
+
+                    return registryKey;
+
+                }
         );
     }
 
@@ -150,11 +176,11 @@ public class SerializableDataType<T> implements Codec<T> {
                 CalioCodecHelper.setOf(enumDataType).xmap(EnumSet::copyOf, Function.identity()));
     }
 
-    public void send(FriendlyByteBuf buffer, Object value) {
+    public void send(RegistryFriendlyByteBuf buffer, Object value) {
         this.send.accept(buffer, this.cast(value));
     }
 
-    public T receive(FriendlyByteBuf buffer) {
+    public T receive(RegistryFriendlyByteBuf buffer) {
         return this.receive.apply(buffer);
     }
 
@@ -162,8 +188,17 @@ public class SerializableDataType<T> implements Codec<T> {
         return this.read.apply(jsonElement);
     }
 
+
+    public JsonElement writeUnsafely(Object value) throws Exception {
+        try {
+            return write.apply(cast(value));
+        } catch (ClassCastException e) {
+            throw new Exception(e);
+        }
+    }
+
     public JsonElement write(T value) {
-        return this.write == null ? JsonNull.INSTANCE : this.write.apply(value);
+        return this.write.apply(value);
     }
 
     public T cast(Object data) {
@@ -188,7 +223,7 @@ public class SerializableDataType<T> implements Codec<T> {
         }
 
         return ops.getByteBuffer(input).flatMap(x -> {
-            FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.copiedBuffer(x));
+            RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.copiedBuffer(x), CalioAPI.getSidedRegistryAccess(), ConnectionType.NEOFORGE);
             try {
                 Pair<T, T1> pair = Pair.of(this.receive.apply(buffer), ops.empty());
                 return DataResult.success(pair);
@@ -220,7 +255,7 @@ public class SerializableDataType<T> implements Codec<T> {
             }
         }
 
-        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
+        RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), CalioAPI.getSidedRegistryAccess(), ConnectionType.NEOFORGE);
         try {
             this.send.accept(buffer, input);
             return DataResult.success(ops.createByteList(buffer.nioBuffer()));
@@ -261,10 +296,10 @@ public class SerializableDataType<T> implements Codec<T> {
                     jsonArray.forEach(je -> {
                         String s = je.getAsString();
                         if (s.startsWith("#")) {
-                            ResourceLocation id = new ResourceLocation(s.substring(1));
+                            ResourceLocation id = ResourceLocation.tryParse(s.substring(1));
                             tagLike.addTag(id);
                         } else {
-                            tagLike.add(new ResourceLocation(s));
+                            tagLike.add(ResourceLocation.tryParse(s));
                         }
                     });
                     return tagLike;
@@ -284,41 +319,4 @@ public class SerializableDataType<T> implements Codec<T> {
                 });
     }
 
-    private void writeWithCodec(FriendlyByteBuf buf, Codec<T> codec, T data) {
-        DataResult<Tag> dataResult = codec.encodeStart(NbtOps.INSTANCE, data);
-        dataResult.error().ifPresent(partialResult -> {
-            throw new EncoderException("Failed to encode: " + partialResult.message() + " " + data);
-        });
-        try {
-            NbtIo.writeUnnamedTag(dataResult.result().get(), new ByteBufOutputStream(buf));
-        } catch (IOException ioexception) {
-            throw new EncoderException("Failed to encode SerializableDataType: " + ioexception);
-        }
-    }
-
-    private T readWithCodec(FriendlyByteBuf buf, Codec<T> codec) {
-        Tag compoundTag = this.readAnySizeNbt(buf);
-        DataResult<T> dataResult = codec.parse(NbtOps.INSTANCE, compoundTag);
-        dataResult.error().ifPresent(partialResult -> {
-            throw new EncoderException("Failed to decode: " + partialResult.message() + " " + compoundTag);
-        });
-        return dataResult.result().get();
-    }
-
-
-    @Nullable
-    private Tag readAnySizeNbt(FriendlyByteBuf buf) {
-        int i = buf.readerIndex();
-        byte b0 = buf.readByte();
-        if (b0 == 0) {
-            return null;
-        } else {
-            buf.readerIndex(i);
-            try {
-                return NbtIo.readUnnamedTag(new ByteBufInputStream(buf),NbtAccounter.unlimitedHeap());
-            } catch (IOException ioexception) {
-                throw new EncoderException(ioexception);
-            }
-        }
-    }
 }

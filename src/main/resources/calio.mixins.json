@@ -5,7 +5,8 @@
 	"compatibilityLevel": "JAVA_17",
 	"mixins": [
 		"MappedRegistryMixin",
-		"RegistryDataLoaderMixin"
+		"RegistryDataLoaderMixin",
+		"RegistryDataLoaderRegistryDataMixin"
 	],
 	"refmap": "calio.refmap.json",
 	"injectors": {

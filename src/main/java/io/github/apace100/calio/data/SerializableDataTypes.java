@@ -1,14 +1,10 @@
 package io.github.apace100.calio.data;
 
-import com.google.common.collect.HashBiMap;
-import com.google.common.collect.ImmutableMap;
 import com.google.gson.*;
 import com.google.gson.internal.LazilyParsedNumber;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.github.apace100.calio.ClassUtil;
@@ -16,22 +12,32 @@ import io.github.apace100.calio.SerializationHelper;
 import io.github.apace100.calio.util.ArgumentWrapper;
 import io.github.apace100.calio.util.StatusEffectChance;
 import io.github.apace100.calio.util.TagLike;
+import io.github.edwinmindcraft.calio.api.CalioAPI;
 import io.github.edwinmindcraft.calio.api.network.CalioCodecHelper;
+import io.github.edwinmindcraft.calio.common.util.DynamicIdentifier;
+import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.EncoderException;
-import net.minecraft.ResourceLocationException;
-import net.minecraft.Util;
 import net.minecraft.commands.arguments.NbtPathArgument;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
+import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleType;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtAccounter;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ComponentSerialization;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
@@ -46,7 +52,6 @@ import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.MobType;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.food.FoodProperties;
@@ -70,7 +75,6 @@ import net.minecraft.world.phys.Vec3;
 import org.apache.commons.lang3.Validate;
 
 import java.util.*;
-import java.util.function.Function;
 
 @SuppressWarnings("unused")
 public final class SerializableDataTypes {
@@ -147,63 +151,36 @@ public final class SerializableDataTypes {
 			ResourceLocation.class,
 			FriendlyByteBuf::writeResourceLocation,
 			FriendlyByteBuf::readResourceLocation,
-			(json) -> {
-				String idString = json.getAsString();
-				if (idString.contains(":")) {
-					String[] idSplit = idString.split(":");
-					if (idSplit.length != 2) {
-						throw new ResourceLocationException("Incorrect number of `:` in identifier: \"" + idString + "\".");
-					}
-					if (idSplit[0].contains("*")) {
-						if (SerializableData.CURRENT_NAMESPACE != null) {
-							idSplit[0] = idSplit[0].replace("*", SerializableData.CURRENT_NAMESPACE);
-						} else {
-							throw new ResourceLocationException("Identifier may not contain a `*` in the namespace when read here.");
-						}
-					}
-					if (idSplit[1].contains("*")) {
-						if (SerializableData.CURRENT_PATH != null) {
-							idSplit[1] = idSplit[1].replace("*", SerializableData.CURRENT_PATH);
-						} else {
-							throw new ResourceLocationException("Identifier may only contain a `*` in the path inside of powers.");
-						}
-					}
-					idString = idSplit[0] + ":" + idSplit[1];
-				} else {
-					if (idString.contains("*")) {
-						if (SerializableData.CURRENT_PATH != null) {
-							idString = idString.replace("*", SerializableData.CURRENT_PATH);
-						} else {
-							throw new ResourceLocationException("Identifier may only contain a `*` in the path inside of powers.");
-						}
-					}
-				}
-				return new ResourceLocation(idString);
-			},
+			DynamicIdentifier::of,
 			x -> new JsonPrimitive(x.toString()));
 
 	public static final SerializableDataType<List<ResourceLocation>> IDENTIFIERS = SerializableDataType.list(IDENTIFIER);
 
-	public static final SerializableDataType<Enchantment> ENCHANTMENT = SerializableDataType.registry(Enchantment.class, BuiltInRegistries.ENCHANTMENT);
+	public static final SerializableDataType<ResourceKey<Enchantment>> ENCHANTMENT = SerializableDataType.registryKey(Registries.ENCHANTMENT);
 
 	public static final SerializableDataType<Attribute> ATTRIBUTE = SerializableDataType.registry(Attribute.class, BuiltInRegistries.ATTRIBUTE);
+
+	public static final SerializableDataType<Holder<Attribute>> ATTRIBUTE_ENTRY = SerializableDataType.registryEntry(BuiltInRegistries.ATTRIBUTE);
+
+	public static final SerializableDataType<List<Holder<Attribute>>> ATTRIBUTE_ENTRIES = SerializableDataType.list(ATTRIBUTE_ENTRY);
+
 
 	public static final SerializableDataType<AttributeModifier.Operation> MODIFIER_OPERATION = SerializableDataType.enumValue(AttributeModifier.Operation.class);
 
 	public static final SerializableDataType<AttributeModifier> ATTRIBUTE_MODIFIER = SerializableDataType.compound(AttributeModifier.class, new SerializableData()
-					.add("name", STRING, "Unnamed attribute modifier")
-					.add("operation", MODIFIER_OPERATION)
-					.add("value", DOUBLE),
+					.add("id", IDENTIFIER)
+					.add("value", DOUBLE)
+					.add("operation", MODIFIER_OPERATION),
 			data -> new AttributeModifier(
-					data.getString("name"),
+					data.getId("id"),
 					data.getDouble("value"),
 					data.get("operation")
 			),
 			(serializableData, modifier) -> {
 				SerializableData.Instance inst = serializableData.new Instance();
-				inst.set("name", modifier.name);
-				inst.set("value", modifier.getAmount());
-				inst.set("operation", modifier.getOperation());
+				inst.set("id", modifier.id());
+				inst.set("value", modifier.amount());
+				inst.set("operation", modifier.operation());
 				return inst;
 			});
 
@@ -216,6 +193,8 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<List<MobEffect>> STATUS_EFFECTS =
 			SerializableDataType.list(STATUS_EFFECT);
+
+	public static final SerializableDataType<Holder<MobEffect>> STATUS_EFFECT_ENTRY = SerializableDataType.registryEntry(BuiltInRegistries.MOB_EFFECT);
 
 	public static final SerializableDataType<MobEffectInstance> STATUS_EFFECT_INSTANCE = new SerializableDataType<>(
 			MobEffectInstance.class,
@@ -284,15 +263,6 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<ResourceKey<DamageType>> DAMAGE_TYPE = SerializableDataType.registryKey(Registries.DAMAGE_TYPE);
 
-	public static final SerializableDataType<MobType> ENTITY_GROUP =
-			SerializableDataType.mapped(MobType.class, HashBiMap.create(ImmutableMap.of(
-					"default", MobType.UNDEFINED,
-					"undead", MobType.UNDEAD,
-					"arthropod", MobType.ARTHROPOD,
-					"illager", MobType.ILLAGER,
-					"aquatic", MobType.WATER
-			)));
-
 	public static final SerializableDataType<EquipmentSlot> EQUIPMENT_SLOT = SerializableDataType.enumValue(EquipmentSlot.class);
 
 	public static final SerializableDataType<SoundEvent> SOUND_EVENT = SerializableDataType.registry(SoundEvent.class, BuiltInRegistries.SOUND_EVENT);
@@ -301,23 +271,60 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<ParticleType<?>> PARTICLE_TYPE = SerializableDataType.registry(ClassUtil.castClass(ParticleType.class), BuiltInRegistries.PARTICLE_TYPE);
 
+	public static final StreamCodec<ByteBuf, CompoundTag> UNLIMITED_NBT_COMPOUND_PACKET_CODEC = ByteBufCodecs.compoundTagCodec(NbtAccounter::unlimitedHeap);
+
+	public static final SerializableDataType<CompoundTag> NBT = new SerializableDataType<>(
+			ClassUtil.castClass(CompoundTag.class),
+			UNLIMITED_NBT_COMPOUND_PACKET_CODEC::encode,
+			UNLIMITED_NBT_COMPOUND_PACKET_CODEC::decode,
+			jsonElement -> Codec.withAlternative(CompoundTag.CODEC, TagParser.LENIENT_CODEC)
+					.parse(JsonOps.INSTANCE, jsonElement)
+					.getOrThrow(),
+			nbtCompound -> CompoundTag.CODEC
+					.encodeStart(JsonOps.INSTANCE, nbtCompound)
+					.mapError(err -> "Couldn't serialize NBT compound to JSON (skipping): " + err)
+					.resultOrPartial(CalioAPI.LOGGER::warn)
+					.orElseGet(JsonObject::new)
+	);
+
 	public static final SerializableDataType<ParticleOptions> PARTICLE_EFFECT = SerializableDataType.compound(ParticleOptions.class,
 			new SerializableData()
 					.add("type", PARTICLE_TYPE)
-					.add("params", STRING, ""),
-			dataInstance -> SerializationHelper.loadParticle(dataInstance.get("type"), dataInstance.getString("params")),
-			((serializableData, particleEffect) -> {
-				SerializableData.Instance data = serializableData.new Instance();
-				data.set("type", particleEffect.getType());
-				String params = particleEffect.writeToString();
-				int spaceIndex = params.indexOf(' ');
-				if (spaceIndex > -1) {
-					params = params.substring(spaceIndex + 1);
-				} else {
-					params = "";
+					.add("params", NBT, null),
+			data -> {
+
+				ParticleType<? extends ParticleOptions> particleType = data.get("type");
+				CompoundTag paramsNbt = data.get("params");
+
+				ResourceLocation particleTypeId = Objects.requireNonNull(BuiltInRegistries.PARTICLE_TYPE.getKey(particleType));
+				if (particleType instanceof SimpleParticleType simpleType) {
+					return simpleType;
 				}
-				data.set("params", params);
+
+				else if (paramsNbt == null || paramsNbt.isEmpty()) {
+					throw new JsonSyntaxException("Expected parameters for particle effect \"" + particleTypeId + "\"");
+				}
+
+				else {
+					paramsNbt.putString("type", particleTypeId.toString());
+					return ParticleTypes.CODEC
+							.parse(NbtOps.INSTANCE, paramsNbt)
+							.getOrThrow();
+				}
+
+			},
+			((serializableData, particleEffect) -> {
+
+				SerializableData.Instance data = serializableData.new Instance();
+				ParticleType<?> particleType = particleEffect.getType();
+
+				data.set("type", particleType);
+				data.set("params", ParticleTypes.CODEC
+						.encodeStart(NbtOps.INSTANCE, particleEffect)
+						.getOrThrow());
+
 				return data;
+
 			}));
 
 	public static final SerializableDataType<ParticleOptions> PARTICLE_EFFECT_OR_TYPE = new SerializableDataType<>(ParticleOptions.class,
@@ -337,55 +344,57 @@ public final class SerializableDataTypes {
 			},
 			PARTICLE_EFFECT::write);
 
-	public static final SerializableDataType<CompoundTag> NBT = SerializableDataType.wrap(CompoundTag.class, SerializableDataTypes.STRING,
-			CompoundTag::toString,
-			(str) -> {
-				try {
-					return new TagParser(new StringReader(str)).readStruct();
-				} catch (CommandSyntaxException e) {
-					throw new JsonSyntaxException("Could not parse NBT tag, exception: " + e.getMessage());
-				}
-			});
+	public static final SerializableDataType<DataComponentPatch> COMPONENT_CHANGES = new SerializableDataType<>(
+			ClassUtil.castClass(DataComponentPatch.class),
+			DataComponentPatch.STREAM_CODEC::encode,
+			DataComponentPatch.STREAM_CODEC::decode,
+			jsonElement -> DataComponentPatch.CODEC
+					.parse(JsonOps.INSTANCE, jsonElement)
+					.getOrThrow(JsonParseException::new),
+			componentChanges -> DataComponentPatch.CODEC
+					.encodeStart(JsonOps.INSTANCE, componentChanges)
+					.mapError(err -> "Failed to serialize component changes to JSON (skipping): " + err)
+					.resultOrPartial(CalioAPI.LOGGER::warn)
+					.orElseGet(JsonObject::new)
+	);
 
 	public static final SerializableDataType<ItemStack> ITEM_STACK = new SerializableDataType<>(ItemStack.class, RecordCodecBuilder.create(instance -> instance.group(
 			ITEM.fieldOf("item").forGetter(ItemStack::getItem),
-			ExtraCodecs.strictOptionalField(CalioCodecHelper.INT, "amount", 1).forGetter(ItemStack::getCount),
-			ExtraCodecs.strictOptionalField(NBT, "tag").forGetter(x -> Optional.ofNullable(x.getTag()))
+			CalioCodecHelper.INT.optionalFieldOf("amount", 1).forGetter(ItemStack::getCount),
+			COMPONENT_CHANGES.optionalFieldOf("components", DataComponentPatch.EMPTY).forGetter(ItemStack::getComponentsPatch)
 	).apply(instance, (t1, t2, t3) -> {
-		ItemStack itemStack = new ItemStack(t1, t2);
-		t3.ifPresent(itemStack::setTag);
-		return itemStack;
+		ItemStack stack = new ItemStack(t1, t2);
+		stack.applyComponents(t3);
+		return stack;
 	})));
 
 	public static final SerializableDataType<List<ItemStack>> ITEM_STACKS = SerializableDataType.list(ITEM_STACK);
 
-	public static final SerializableDataType<Component> TEXT = new SerializableDataType<>(Component.class,
-			(buffer, text) -> buffer.writeUtf(Component.Serializer.toJson(text)),
-			(buffer) -> Component.Serializer.fromJson(buffer.readUtf()),
-			Component.Serializer::fromJson,
-			Component.Serializer::toJsonTree);
+	public static final SerializableDataType<Component> TEXT = new SerializableDataType<>(Component.class, ComponentSerialization.CODEC, ComponentSerialization.STREAM_CODEC);
 
 	public static final SerializableDataType<List<Component>> TEXTS = SerializableDataType.list(TEXT);
 
-	public static SerializableDataType<ResourceKey<Level>> DIMENSION = SerializableDataType.registryKey(Registries.DIMENSION);
+	private static final Set<ResourceKey<Level>> VANILLA_DIMENSIONS = Set.of(
+			Level.OVERWORLD,
+			Level.NETHER,
+			Level.END
+	);
 
-	// It is theoretically possible to support recipe serialization, but it's a mess.
-	// To do this, we need to keep an additional list functions designed to build RecipeJsonProvider
-	// from recipes, which is possible, but time consuming to setup, and prone to breaking if another
-	// mod's recipe type is used.
+	public static SerializableDataType<ResourceKey<Level>> DIMENSION = SerializableDataType.registryKey(Registries.DIMENSION, VANILLA_DIMENSIONS);
+
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public static final SerializableDataType<Recipe> RECIPE = new SerializableDataType<>(Recipe.class,
 			(buffer, recipe) -> {
 				ResourceLocation serializerName = BuiltInRegistries.RECIPE_SERIALIZER.getKey(recipe.getSerializer());
 				Validate.notNull(serializerName, "Recipe serializer %s was not registered.".formatted(recipe.getSerializer()));
 				buffer.writeResourceLocation(serializerName);
-				recipe.getSerializer().toNetwork(buffer, recipe);
+				Recipe.STREAM_CODEC.encode(buffer, recipe);
 			},
 			(buffer) -> {
 				ResourceLocation recipeSerializerId = buffer.readResourceLocation();
 				RecipeSerializer<?> serializer = BuiltInRegistries.RECIPE_SERIALIZER.get(recipeSerializerId);
 				Validate.notNull(serializer, "Missing recipe serializer: %s".formatted(recipeSerializerId));
-				return serializer.fromNetwork(buffer);
+				return Recipe.STREAM_CODEC.decode(buffer);
 			},
 			(jsonElement) -> {
 				if (!jsonElement.isJsonObject()) {
@@ -395,12 +404,12 @@ public final class SerializableDataTypes {
 				ResourceLocation recipeSerializerId = ResourceLocation.tryParse(GsonHelper.getAsString(json, "type"));
 				RecipeSerializer<?> serializer = BuiltInRegistries.RECIPE_SERIALIZER.get(recipeSerializerId);
 				Validate.notNull(serializer, "Missing recipe serializer: %s".formatted(recipeSerializerId));
-				return Util.getOrThrow(serializer.codec().decode(JsonOps.INSTANCE, json), s -> new EncoderException("Failed to deserialize recipe with serializer: %s".formatted(recipeSerializerId))).getFirst();
+				return Recipe.CODEC.decode(JsonOps.INSTANCE, json).getOrThrow(s -> new EncoderException("Failed to deserialize recipe with serializer: %s".formatted(recipeSerializerId))).getFirst();
 			},
 			recipe -> {
 				ResourceLocation recipeSerializerId = BuiltInRegistries.RECIPE_SERIALIZER.getKey(recipe.getSerializer());
 				Validate.notNull(recipeSerializerId, "Serializer %s is not registered.".formatted(recipe.getSerializer().toString()));
-				JsonElement element = Util.<JsonElement, EncoderException>getOrThrow(recipe.getSerializer().codec().encodeStart(JsonOps.INSTANCE, recipe), s -> new EncoderException("Failed to serialize recipe with serializer: %s".formatted(recipeSerializerId)));
+				JsonElement element = Recipe.CODEC.encodeStart(JsonOps.INSTANCE, recipe).getOrThrow(s -> new EncoderException("Failed to serialize recipe with serializer: %s".formatted(recipeSerializerId)));
 				if (!element.isJsonObject())
 					throw new EncoderException("Serializer %s returns non-object elements which cannot be safely serialized.".formatted(recipeSerializerId));
 				element.getAsJsonObject().addProperty("type", recipeSerializerId.toString());
@@ -447,45 +456,64 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<List<StatusEffectChance>> STATUS_EFFECT_CHANCES = SerializableDataType.list(STATUS_EFFECT_CHANCE);
 
+	public static final SerializableDataType<FoodProperties.PossibleEffect> FOOD_STATUS_EFFECT_ENTRY = new SerializableDataType<>(
+			ClassUtil.castClass(FoodProperties.PossibleEffect.class),
+			FoodProperties.PossibleEffect.CODEC,
+			FoodProperties.PossibleEffect.STREAM_CODEC
+	);
+
+	public static final SerializableDataType<List<FoodProperties.PossibleEffect>> FOOD_STATUS_EFFECT_ENTRIES = SerializableDataType.list(FOOD_STATUS_EFFECT_ENTRY);
+
 	public static final SerializableDataType<FoodProperties> FOOD_COMPONENT = SerializableDataType.compound(FoodProperties.class, new SerializableData()
 					.add("hunger", INT)
 					.add("saturation", FLOAT)
-					.add("meat", BOOLEAN, false)
 					.add("always_edible", BOOLEAN, false)
 					.add("snack", BOOLEAN, false)
-					.add("effect", STATUS_EFFECT_CHANCE, null)
-					.add("effects", STATUS_EFFECT_CHANCES, null),
+					.add("effect", FOOD_STATUS_EFFECT_ENTRY, null)
+					.add("effects", FOOD_STATUS_EFFECT_ENTRIES, null)
+					.add("using_converts_to", ITEM_STACK, null),
 			(data) -> {
-				FoodProperties.Builder builder = new FoodProperties.Builder().nutrition(data.getInt("hunger")).saturationMod(data.getFloat("saturation"));
-				if (data.getBoolean("meat")) {
-					builder.meat();
-				}
+				FoodProperties.Builder builder = new FoodProperties.Builder()
+						.nutrition(data.getInt("hunger"))
+						.saturationModifier(data.getFloat("saturation"));
+
 				if (data.getBoolean("always_edible")) {
-					builder.alwaysEat();
+					builder.alwaysEdible();
 				}
+
 				if (data.getBoolean("snack")) {
 					builder.fast();
 				}
-				data.<StatusEffectChance>ifPresent("effect", sec -> builder.effect(() -> sec.statusEffectInstance, sec.chance));
-				data.<List<StatusEffectChance>>ifPresent("effects", secs -> secs.forEach(sec -> builder.effect(() -> sec.statusEffectInstance, sec.chance)));
+
+				data.<FoodProperties.PossibleEffect>ifPresent("effect", effectEntry ->
+						builder.effect(effectEntry.effect(), effectEntry.probability())
+				);
+
+				data.<List<FoodProperties.PossibleEffect>>ifPresent("effects", effectEntries -> effectEntries.forEach(effectEntry ->
+						builder.effect(effectEntry.effect(), effectEntry.probability())
+				));
+
+				if (data.isPresent("using_converts_to")) {
+					builder.usingConvertsTo(data.get("using_converts_to"));
+				}
+
 				return builder.build();
 			},
 			(data, fc) -> {
 				SerializableData.Instance inst = data.new Instance();
-				inst.set("hunger", fc.getNutrition());
-				inst.set("saturation", fc.getSaturationModifier());
-				inst.set("meat", fc.isMeat());
+				inst.set("hunger", fc.nutrition());
+				inst.set("saturation", fc.saturation());
 				inst.set("always_edible", fc.canAlwaysEat());
-				inst.set("snack", fc.isFastFood());
+				inst.set("snack", fc.eatDurationTicks());
 				inst.set("effect", null);
 				List<StatusEffectChance> statusEffectChances = new LinkedList<>();
-				fc.getEffects().forEach(pair -> {
+				fc.effects().forEach(pair -> {
 					StatusEffectChance sec = new StatusEffectChance();
-					sec.statusEffectInstance = pair.getFirst();
-					sec.chance = pair.getSecond();
+					sec.statusEffectInstance = pair.effect();
+					sec.chance = pair.probability();
 					statusEffectChances.add(sec);
 				});
-				if (statusEffectChances.size() > 0) {
+				if (!statusEffectChances.isEmpty()) {
 					inst.set("effects", statusEffectChances);
 				} else {
 					inst.set("effects", null);
