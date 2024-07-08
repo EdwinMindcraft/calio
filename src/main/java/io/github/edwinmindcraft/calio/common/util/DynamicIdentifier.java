@@ -5,18 +5,15 @@ import io.github.apace100.calio.data.SerializableData;
 import net.minecraft.ResourceLocationException;
 import net.minecraft.resources.ResourceLocation;
 
-public class DynamicIdentifier extends ResourceLocation {
-
-    protected DynamicIdentifier(String namespace, String path) {
-        super(namespace, path);
-    }
+// FORGE: Don't extend ResourceLocation.
+public class DynamicIdentifier {
 
     public static ResourceLocation of(JsonElement jsonElement) {
         return of(jsonElement.getAsString());
     }
 
     public static ResourceLocation of(String idString) {
-        return of(idString, DEFAULT_NAMESPACE);
+        return of(idString, ResourceLocation.DEFAULT_NAMESPACE);
     }
 
     public static ResourceLocation of(String idString, String defaultNamespace) {
@@ -38,13 +35,13 @@ public class DynamicIdentifier extends ResourceLocation {
             }
         }
 
-        return new DynamicIdentifier(namespaceAndPath[0], namespaceAndPath[1]);
+        return ResourceLocation.fromNamespaceAndPath(namespaceAndPath[0], namespaceAndPath[1]);
 
     }
 
     public static String[] splitWithNamespace(String idString, String defaultNamespace) {
 
-        String[] namespaceAndPath = idString.split(String.valueOf(NAMESPACE_SEPARATOR));
+        String[] namespaceAndPath = idString.split(String.valueOf(ResourceLocation.NAMESPACE_SEPARATOR));
         if (namespaceAndPath.length > 2) {
             throw new ResourceLocationException("Identifier \"" + idString + "\" must only have one \":\" separating its namespace and path.");
         }
